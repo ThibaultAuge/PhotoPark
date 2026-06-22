@@ -19,6 +19,9 @@ Application privée Next.js pour inventorier, filtrer, visualiser et comparer de
 - Filtres par texte, monture, capteur, statut, focale et ouverture.
 - Graphique SVG focale/ouverture avec sélection et masquage d’objectifs.
 - Comparaison de 2 à 5 objectifs avec différences en gras.
+- Navigation multi-pages avec barre de navigation : Objectifs, Boîtiers, Accessoires, Paramètres.
+- Pages paramètres séparées pour les marques, les montures et les options.
+- Pages « Boîtiers » et « Accessoires » préparées pour un futur inventaire.
 - Tests Vitest pour la validation et les helpers métier.
 
 Le schéma suivant résume le flux principal de l’application.
@@ -201,7 +204,7 @@ Le dépôt ignore déjà les fichiers SQLite, le dossier `data/`, `.env` et les 
 
 ### Référentiels
 
-Les marques, les montures et les options ne sont plus des champs libres saisis directement dans chaque objectif. L’application les stocke dans des listes administrables.
+Les marques, les montures et les options ne sont plus des champs libres saisis directement dans chaque objectif. L’application les stocke dans des listes administrables accessibles depuis la barre de navigation via Paramètres > Marques, Paramètres > Montures et Paramètres > Options.
 
 | Référentiel | Champs | Utilisation |
 |---|---|---|

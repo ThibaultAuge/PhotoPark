@@ -4,8 +4,7 @@ import React, { useState, useCallback, useMemo } from "react";
 import { useLensContext } from "@/components/lens/LensProvider";
 import { LensFiltersBar } from "@/components/lens/LensFiltersBar";
 import { LensChart } from "@/components/lens/LensChart";
-import { LensCompareTable } from "@/components/lens/LensCompareTable";
-import { LensCompareTray } from "@/components/lens/LensCompareTray";
+import { LensComparePopup } from "@/components/lens/LensComparePopup";
 import { LensForm } from "@/components/lens/LensForm";
 
 export function LensChartPage() {
@@ -138,11 +137,8 @@ export function LensChartPage() {
         </div>
       </aside>
 
-      {/* Compare section — full width below */}
-      <div className="chart-page-compare">
-        <LensCompareTable lenses={selectedLenses} />
-        <LensCompareTray lenses={selectedLenses} onClear={clearSelection} />
-      </div>
+      {/* Compare popup */}
+      <LensComparePopup lenses={selectedLenses} onClear={clearSelection} />
 
       {/* Modals */}
       {showCreate ? (

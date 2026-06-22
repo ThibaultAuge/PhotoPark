@@ -1,11 +1,11 @@
 "use client";
 
+import { useMemo } from "react";
 import { useLensContext } from "@/components/lens/LensProvider";
 import { LensFiltersBar } from "@/components/lens/LensFiltersBar";
 import { LensTable } from "@/components/lens/LensTable";
 import { LensCard } from "@/components/lens/LensCard";
-import { LensCompareTable } from "@/components/lens/LensCompareTable";
-import { LensCompareTray } from "@/components/lens/LensCompareTray";
+import { LensComparePopup } from "@/components/lens/LensComparePopup";
 import { LensForm } from "@/components/lens/LensForm";
 
 export function LensListPage() {
@@ -25,7 +25,10 @@ export function LensListPage() {
     referenceData,
   } = useLensContext();
 
-  const selectedLenses = initialLenses.filter((lens) => selectedIds.includes(lens.id));
+  const selectedLenses = useMemo(
+    () => initialLenses.filter((lens) => selectedIds.includes(lens.id)),
+    [initialLenses, selectedIds],
+  );
 
   return (
     <section className="manager-grid">
@@ -53,8 +56,7 @@ export function LensListPage() {
         ))}
       </div>
 
-      <LensCompareTable lenses={selectedLenses} />
-      <LensCompareTray lenses={selectedLenses} onClear={clearSelection} />
+      <LensComparePopup lenses={selectedLenses} onClear={clearSelection} />
 
       {showCreate ? <LensForm title="Ajouter un objectif" referenceData={referenceData} onClose={() => setShowCreate(false)} /> : null}
       {editingLens ? <LensForm title="Modifier l'objectif" lens={editingLens} referenceData={referenceData} onClose={() => setEditingLens(null)} /> : null}

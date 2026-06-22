@@ -183,14 +183,8 @@ vi.mock("@/components/lens/LensChart", () => ({
   },
 }));
 
-vi.mock("@/components/lens/LensCompareTable", () => ({
-  LensCompareTable: function LensCompareTableMock() {
-    return null;
-  },
-}));
-
-vi.mock("@/components/lens/LensCompareTray", () => ({
-  LensCompareTray: function LensCompareTrayMock() {
+vi.mock("@/components/lens/LensComparePopup", () => ({
+  LensComparePopup: function LensComparePopupMock() {
     return null;
   },
 }));
@@ -208,8 +202,7 @@ vi.mock("@/components/lens/LensForm", () => ({
 import { LensChartPage } from "../../../src/components/lens/LensChartPage";
 import { LensChart } from "@/components/lens/LensChart";
 import { LensForm } from "@/components/lens/LensForm";
-import { LensCompareTable } from "@/components/lens/LensCompareTable";
-import { LensCompareTray } from "@/components/lens/LensCompareTray";
+import { LensComparePopup } from "@/components/lens/LensComparePopup";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -295,7 +288,6 @@ describe("LensChartPage", () => {
     expect(html).toContain("Ajouter un objectif");
     expect(html).toContain('class="chart-page-main"');
     expect(html).toContain('class="chart-page-sidebar"');
-    expect(html).toContain('class="chart-page-compare"');
   });
 
   /**
@@ -588,37 +580,26 @@ describe("LensChartPage", () => {
   });
 
   /**
-   * Verifies that LensCompareTable and LensCompareTray receive the
-   * selectedLenses array (filtered from initialLenses by selectedIds).
+   * Verifies that LensComparePopup receives the selectedLenses array
+   * (filtered from initialLenses by selectedIds) and onClear callback.
    */
-  test("compare section receives selectedLenses", () => {
+  test("compare popup receives selectedLenses and onClear", () => {
     reactHookMocks.useState = (initialValue: unknown) => [[], vi.fn()];
     reactHookMocks.useCallback = (fn: () => unknown) => fn;
     mockContext.selectedIds = [lens1.id, lens2.id];
 
     const tree = renderChartPageTree();
 
-    // Find LensCompareTable — receives selectedLenses
-    const tableElements = findElements(
+    const popupElements = findElements(
       tree,
-      (_props, type) => type === LensCompareTable,
+      (_props, type) => type === LensComparePopup,
     );
 
-    expect(tableElements).toHaveLength(1);
-    const tableLenses = tableElements[0].props.lenses as Lens[];
-    expect(tableLenses).toHaveLength(2);
-    expect(tableLenses.map((l) => l.id)).toEqual([lens1.id, lens2.id]);
-
-    // Find LensCompareTray — receives selectedLenses and onClear
-    const trayElements = findElements(
-      tree,
-      (_props, type) => type === LensCompareTray,
-    );
-
-    expect(trayElements).toHaveLength(1);
-    const trayLenses = trayElements[0].props.lenses as Lens[];
-    expect(trayLenses).toHaveLength(2);
-    expect(trayElements[0].props.onClear).toBe(mockContext.clearSelection);
+    expect(popupElements).toHaveLength(1);
+    const popupLenses = popupElements[0].props.lenses as Lens[];
+    expect(popupLenses).toHaveLength(2);
+    expect(popupLenses.map((l) => l.id)).toEqual([lens1.id, lens2.id]);
+    expect(popupElements[0].props.onClear).toBe(mockContext.clearSelection);
   });
 
   /**

@@ -22,7 +22,7 @@ export function AppNav() {
 
   return (
     <nav className="app-nav">
-      <Link href="/lenses" className="app-logo">Photos Lens Manager</Link>
+      <Link href="/lenses" className="app-logo">PhotoPark</Link>
       <div className="app-nav-links">
         {links.map((link) => (
           <Link

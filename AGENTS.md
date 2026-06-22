@@ -1,7 +1,7 @@
-# Photos Lens Manager - contexte agent
+# PhotoPark - contexte agent
 
 ## Current State
-Application Next.js 15 / TypeScript (`photos-lens-manager`) pour inventorier, visualiser et comparer du matériel photo, centrée sur les objectifs.
+Application Next.js 15 / TypeScript (`photopark`) pour inventorier, visualiser et comparer du matériel photo, centrée sur les objectifs.
 
 - **Architecture multi-pages** avec navigation. Toutes les routes authentifiées sont sous le groupe `(authenticated)/`. La racine `/` redirige vers `/lenses`.
 - **Routes actuelles :**

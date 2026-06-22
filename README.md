@@ -1,4 +1,4 @@
-# Gestion d’objectifs photo
+# PhotoPark
 
 Application privée Next.js pour inventorier, filtrer, visualiser et comparer des objectifs photo.
 

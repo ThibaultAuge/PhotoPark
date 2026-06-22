@@ -2,8 +2,9 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Objectifs photo",
-  description: "Inventaire et comparateur personnel d'objectifs photo"
+  title: "PhotoPark",
+  description: "PhotoPark — Inventaire et comparateur personnel de matériel photo",
+  icons: { icon: "/favicon.svg" }
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

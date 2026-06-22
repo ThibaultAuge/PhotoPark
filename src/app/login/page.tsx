@@ -9,7 +9,7 @@ export default function LoginPage() {
     <main className="login-shell">
       <form action={formAction} className="login-card">
         <p className="eyebrow">Accès privé</p>
-        <h1>Gestion objectifs photo</h1>
+        <h1>PhotoPark</h1>
         <p>Entrez le mot de passe partagé pour accéder à l’inventaire.</p>
         <label>
           Mot de passe

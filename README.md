@@ -17,7 +17,7 @@ Application privée Next.js pour inventorier, filtrer, visualiser et comparer de
 - Options associées aux objectifs en N-N avec un code court et une description.
 - Tableau desktop et cartes mobile avec type `Fixe`/`Zoom` et plages identiques compactées (`7.8 mm`, `f/4`).
 - Filtres par texte, monture, capteur, statut, focale et ouverture.
-- Graphique SVG focale/ouverture avec sélection et masquage d’objectifs.
+- Graphique SVG interactif focale/ouverture avec zoom molette, pan tactile, sélection et masquage d’objectifs.
 - Comparaison de 2 à 5 objectifs avec différences en gras.
 - Navigation multi-pages avec barre de navigation : Objectifs, Boîtiers, Accessoires, Paramètres.
 - Pages paramètres séparées pour les marques, les montures et les options.
@@ -33,7 +33,7 @@ flowchart LR
     Session --> App[Inventaire protégé]
     App --> CRUD[Actions CRUD]
     CRUD --> SQLite[(SQLite local)]
-    App --> Chart[Graphique SVG]
+    App --> Chart[Graphique SVG interactif]
     App --> Compare[Comparaison 2 à 5]
 ```
 *Figure: Flux entre authentification, inventaire, stockage SQLite et vues de visualisation.*

@@ -11,10 +11,11 @@ Application privée Next.js pour inventorier, filtrer, visualiser et comparer de
 - Protection d’origine sur les actions mutatives.
 - Stockage SQLite local avec `better-sqlite3`.
 - CRUD complet des objectifs.
+- Import client depuis un libellé d’objectif pour préremplir le formulaire.
 - Référentiels administrables pour les marques, les montures et les options.
 - Relation 1-N entre une marque et les objectifs, et entre une monture et les objectifs.
 - Options associées aux objectifs en N-N avec un code court et une description.
-- Tableau desktop et cartes mobile.
+- Tableau desktop et cartes mobile avec type `Fixe`/`Zoom` et plages identiques compactées (`7.8 mm`, `f/4`).
 - Filtres par texte, monture, capteur, statut, focale et ouverture.
 - Graphique SVG focale/ouverture avec sélection et masquage d’objectifs.
 - Comparaison de 2 à 5 objectifs avec différences en gras.
@@ -80,6 +81,22 @@ Ouvrez ensuite l’URL affichée par Next.js, généralement `http://localhost:3
 
 ## Saisie des objectifs
 
+### Import depuis un libellé
+
+Dans le formulaire d’objectif, collez un libellé dans le champ `Libellé` pour préremplir les champs structurés lorsque les éléments existent déjà dans les référentiels.
+
+Exemple :
+
+```text
+Canon EF 18-55 F/3,5-5,6 IS
+```
+
+L’application peut reconnaître la marque, la monture, les focales, les ouvertures maximales et les options présentes dans les référentiels chargés. Modifiez ensuite les champs si nécessaire.
+
+Le libellé affiché en aperçu se régénère automatiquement à partir des champs structurés. Le texte collé n’est pas enregistré tel quel : le serveur reconstruit toujours le libellé final depuis la marque, la monture, les focales, les ouvertures et les options sélectionnées.
+
+### Valeurs numériques
+
 Le formulaire accepte les nombres avec un point ou une virgule comme séparateur décimal.
 
 Vous pouvez saisir indifféremment :
@@ -112,7 +129,7 @@ Exemple pour un objectif `50 mm f/1.8` : renseignez `Ouverture max à min focale
 
 ## Tests
 
-Les tests utilisent Vitest avec l’environnement Node. La suite contient actuellement 45 tests.
+Les tests utilisent Vitest avec l’environnement Node. La suite contient actuellement 80 tests.
 
 ```bash
 npm run test
@@ -125,6 +142,7 @@ La suite couvre actuellement :
 - la coercition des valeurs numériques et booléennes issues des formulaires ;
 - les règles métier sur les focales et ouvertures ;
 - la génération de libellés ;
+- le parsing des libellés collés dans le formulaire ;
 - le calcul des équivalents APS-C ;
 - les helpers de formatage.
 

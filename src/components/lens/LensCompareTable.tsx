@@ -1,9 +1,10 @@
 import type { Lens } from "@/lib/lens/types";
+import { formatApertureRange, formatFocalRange, getLensKind } from "@/lib/lens/lens-utils";
 
 const rows: Array<[string, (lens: Lens) => string | number | boolean | null]> = [
   ["Marque", (l) => l.brand], ["Monture", (l) => l.mount], ["Capteur", (l) => l.sensorType === "FULL_FRAME" ? "Plein format" : "APS-C"],
-  ["Focale", (l) => `${l.focalMinMm}-${l.focalMaxMm} mm`], ["Équiv. APS-C", (l) => `${l.apscFocalMinEquivalentMm}-${l.apscFocalMaxEquivalentMm} mm`],
-  ["Ouverture max", (l) => `f/${l.maxApertureAtMinFocal}-${l.maxApertureAtMaxFocal}`], ["Ouverture min", (l) => l.minAperture ? `f/${l.minAperture}` : "—"],
+  ["Type", (l) => getLensKind(l)], ["Focale", (l) => formatFocalRange(l)], ["Équiv. APS-C", (l) => formatFocalRange({ focalMinMm: l.apscFocalMinEquivalentMm, focalMaxMm: l.apscFocalMaxEquivalentMm })],
+  ["Ouverture max", (l) => formatApertureRange(l)], ["Ouverture min", (l) => l.minAperture ? `f/${l.minAperture}` : "—"],
   ["Options", (l) => l.options.map((option) => option.code).join(" ") || "—"], ["Filtre", (l) => l.filterDiameterMm ? `${l.filterDiameterMm} mm` : "—"], ["Prix", (l) => l.priceEur ? `${l.priceEur} €` : "—"],
   ["Distance mini", (l) => l.minFocusDistanceM ? `${l.minFocusDistanceM} m` : "—"], ["Angle min/max", (l) => `${l.angleAtMinFocalDeg ?? "—"}° / ${l.angleAtMaxFocalDeg ?? "—"}°`],
   ["Diaphragme", (l) => l.apertureBlades ? `${l.apertureBlades} lames` : "—"], ["Groupes-lentilles", (l) => l.groupsCount && l.elementsCount ? `${l.groupsCount}-${l.elementsCount}` : "—"],

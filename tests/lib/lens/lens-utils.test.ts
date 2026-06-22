@@ -2,9 +2,12 @@ import { describe, expect, test } from "vitest";
 
 import {
   calculateApscEquivalent,
+  formatApertureRange,
+  formatFocalRange,
   formatOptions,
   formatNumber,
   generateLensLabel,
+  getLensKind,
   isConstantAperture,
   isPrimeLens,
   normalizeLensInput,
@@ -61,6 +64,14 @@ describe("lens-utils", () => {
   });
 
   /**
+   * Verifies that lens kind is derived from focal bounds
+   */
+  test("getLensKind returns Fixe or Zoom from focal bounds", () => {
+    expect(getLensKind({ focalMinMm: 50, focalMaxMm: 50 })).toBe("Fixe");
+    expect(getLensKind({ focalMinMm: 24, focalMaxMm: 70 })).toBe("Zoom");
+  });
+
+  /**
    * Verifies that identical aperture bounds are constant aperture
    */
   test("isConstantAperture returns true for equal aperture values", () => {
@@ -97,6 +108,13 @@ describe("lens-utils", () => {
   });
 
   /**
+   * Verifies that display formatting does not silently round stored precision
+   */
+  test("formatNumber preserves non-integer precision", () => {
+    expect(formatNumber(7.85)).toBe("7.85");
+  });
+
+  /**
    * Verifies that option codes are formatted in their input order
    */
   test("formatOptions joins option codes in input order", () => {
@@ -108,6 +126,22 @@ describe("lens-utils", () => {
    */
   test("formatOptions returns empty string for empty options", () => {
     expect(formatOptions([])).toBe("");
+  });
+
+  /**
+   * Verifies that identical focal bounds are not repeated
+   */
+  test("formatFocalRange avoids repeating fixed focal lengths", () => {
+    expect(formatFocalRange({ focalMinMm: 7.8, focalMaxMm: 7.8 })).toBe("7.8 mm");
+    expect(formatFocalRange({ focalMinMm: 24, focalMaxMm: 70 })).toBe("24-70 mm");
+  });
+
+  /**
+   * Verifies that identical aperture bounds are not repeated
+   */
+  test("formatApertureRange avoids repeating constant apertures", () => {
+    expect(formatApertureRange({ maxApertureAtMinFocal: 4, maxApertureAtMaxFocal: 4 })).toBe("f/4");
+    expect(formatApertureRange({ maxApertureAtMinFocal: 4, maxApertureAtMaxFocal: 5.6 })).toBe("f/4-5.6");
   });
 
   /**

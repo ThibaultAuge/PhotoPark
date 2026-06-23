@@ -62,6 +62,7 @@ input:focus, select:focus { outline: 3px solid #bfdbfe; border-color: var(--prim
 table { width: 100%; border-collapse: collapse; min-width: 940px; }
 th, td { padding: 14px 12px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
 th { font-size: .82rem; color: #4b5563; text-transform: uppercase; letter-spacing: .04em; }
+.numeric-cell, .numeric-value { text-align: right; font-variant-numeric: tabular-nums; }
 small { color: var(--muted); }
 .actions, .card-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .empty-state { padding: 20px; color: var(--muted); }

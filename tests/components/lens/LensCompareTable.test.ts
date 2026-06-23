@@ -221,6 +221,8 @@ describe("LensCompareTable", () => {
     expect(html).toContain("Capteur");
     expect(html).toContain("Type");
     expect(html).toContain("Focale");
+    expect(html).toContain("1 200.00 €");
+    expect(html).toContain("900 g");
     expect(html).toContain("Poids");
     expect(html).toContain("Favori");
   });

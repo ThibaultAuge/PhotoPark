@@ -45,6 +45,18 @@ export function formatNumber(value: number) {
   return `${value}`;
 }
 
+function formatGroupedNumber(value: number, options?: Intl.NumberFormatOptions) {
+  return new Intl.NumberFormat("en-US", options).format(value).replace(/,/g, " ");
+}
+
+export function formatPrice(value: number) {
+  return `${formatGroupedNumber(value, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`;
+}
+
+export function formatWeight(value: number) {
+  return `${formatGroupedNumber(value, { maximumFractionDigits: 0 })} g`;
+}
+
 export function roundNumber(value: number) {
   return Math.round(value * 10) / 10;
 }

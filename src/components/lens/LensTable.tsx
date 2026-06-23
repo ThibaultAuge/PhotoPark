@@ -1,14 +1,14 @@
 import React from "react";
 import type { Lens } from "@/lib/lens/types";
 import { deleteLensAction } from "@/app/actions/lens-actions";
-import { formatApertureRange, formatFocalRange, getLensKind } from "@/lib/lens/lens-utils";
+import { formatApertureRange, formatFocalRange, formatPrice, formatWeight, getLensKind } from "@/lib/lens/lens-utils";
 import { LensStatusTags } from "./LensStatusTags";
 
 export function LensTable({ lenses, selectedIds, onToggleSelected, onEdit }: { lenses: Lens[]; selectedIds: string[]; onToggleSelected: (id: string) => void; onEdit: (lens: Lens) => void }) {
   return (
     <div className="card table-card">
       <table>
-        <thead><tr><th>Comparer</th><th>Objectif</th><th>Type</th><th>Monture</th><th>Focale</th><th>Ouverture</th><th>Prix</th><th>Poids</th><th>Tags</th><th>Actions</th></tr></thead>
+        <thead><tr><th>Comparer</th><th>Objectif</th><th>Type</th><th>Monture</th><th>Focale</th><th>Ouverture</th><th className="numeric-cell">Prix</th><th className="numeric-cell">Poids</th><th>Tags</th><th>Actions</th></tr></thead>
         <tbody>
           {lenses.map((lens) => (
             <tr key={lens.id}>
@@ -18,8 +18,8 @@ export function LensTable({ lenses, selectedIds, onToggleSelected, onEdit }: { l
               <td>{lens.mount}<br /><small>{lens.sensorType === "FULL_FRAME" ? "Plein format" : "APS-C"}</small></td>
               <td>{formatFocalRange(lens)}<br /><small>eq. APS-C {formatFocalRange({ focalMinMm: lens.apscFocalMinEquivalentMm, focalMaxMm: lens.apscFocalMaxEquivalentMm })}</small></td>
               <td>{formatApertureRange(lens)}</td>
-              <td>{lens.priceEur ? `${lens.priceEur} €` : "—"}</td>
-              <td>{lens.weightG ? `${lens.weightG} g` : "—"}</td>
+              <td className="numeric-cell">{lens.priceEur !== null ? formatPrice(lens.priceEur) : "—"}</td>
+              <td className="numeric-cell">{lens.weightG !== null ? formatWeight(lens.weightG) : "—"}</td>
               <td><LensStatusTags lens={lens} /></td>
               <td className="actions"><button className="ghost-button" onClick={() => onEdit(lens)}>Modifier</button><form action={deleteLensAction.bind(null, lens.id)}><button className="danger-button">Supprimer</button></form></td>
             </tr>

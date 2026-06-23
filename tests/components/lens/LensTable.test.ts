@@ -85,8 +85,9 @@ describe("LensTable", () => {
     expect(markup).toContain("f/1.4");
     expect(markup).not.toContain("f/1.4-1.4");
     expect(markup).toContain("APS-C");
-    expect(markup).toContain("499 €");
+    expect(markup).toContain("499.00 €");
     expect(markup).toContain("187 g");
+    expect(markup).toContain('class="numeric-cell">499.00 €');
     expect(markup).toMatch(/<input(?=[^>]*type="checkbox")(?=[^>]*checked="")(?=[^>]*aria-label="Comparer Sigma E 24-70 f\/2\.8-4")[^>]*>/);
   });
 
@@ -99,5 +100,12 @@ describe("LensTable", () => {
     expect(markup).toContain("Aucun objectif ne correspond aux filtres.");
     expect(markup).not.toContain("Modifier");
     expect(markup).not.toContain("Supprimer");
+  });
+
+  test("renders zero price and weight instead of empty dash", () => {
+    const markup = renderTable([{ ...baseLens, priceEur: 0, weightG: 0 }]);
+
+    expect(markup).toContain("0.00 €");
+    expect(markup).toContain("0 g");
   });
 });

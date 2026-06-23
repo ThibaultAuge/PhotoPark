@@ -15,8 +15,8 @@ Application privée Next.js pour inventorier, filtrer, visualiser et comparer de
 - Référentiels administrables pour les marques, les montures et les options, ces dernières étant liées à une marque spécifique.
 - Relation 1-N entre une marque et les objectifs, et entre une monture et les objectifs.
 - Options associées aux objectifs en N-N avec un code court et une description.
-- Tableau desktop et cartes mobile avec type `Fixe`/`Zoom`, plages identiques compactées (`7.8 mm`, `f/4`) et badges de statut dont `Retiré`.
-- Filtres par texte, marque, monture, option, statut et quatre plages numériques réglables par curseurs à double poignée (focale min 0–1000 mm, focale max 0–1000 mm, ouverture à focale min f/1–f/30, ouverture à focale max f/1–f/30).
+- Tableau desktop et cartes mobile avec type `Fixe`/`Zoom`, plages identiques compactées (`7.8 mm`, `f/4`), badges de statut dont `Retiré`, prix formatés avec espaces pour les milliers et toujours 2 décimales (`3 314.00 €`), et poids formatés avec espaces pour les milliers (`1 079 g`).
+- Filtres par texte, marque, monture, option, type (`Tous`, `Fixe`, `Zoom`), statut et quatre plages numériques réglables par curseurs à double poignée (focale min 0–1000 mm, focale max 0–1000 mm, ouverture à focale min f/1–f/30, ouverture à focale max f/1–f/30). Les deux plages de focale démarrent sur `0–1000 mm`, donc aucun filtrage de focale n’est appliqué par défaut.
 - Graphique SVG interactif focale/ouverture disposé en mise en page deux colonnes (4/5 graphique, 1/5 liste à cocher) avec zoom molette, pan tactile, sélection et masquage d’objectifs. À l’ouverture, il coche automatiquement les objectifs possédés et non retirés.
 - Comparaison de 2 à 5 objectifs avec différences en gras.
 - Navigation multi-pages avec barre de navigation : Objectifs, Boîtiers, Accessoires, Paramètres.
@@ -123,6 +123,12 @@ Vous pouvez saisir indifféremment :
 
 Le champ `Ouverture max à max focale` est optionnel. Si vous le laissez vide, l’application reprend automatiquement la valeur du champ `Ouverture max à min focale`.
 
+Dans l’inventaire et la comparaison :
+
+- un prix s’affiche toujours avec 2 décimales et des espaces pour les milliers, par exemple `3 314.00 €` ;
+- un poids s’affiche avec des espaces pour les milliers, par exemple `1 079 g` ;
+- la valeur `0` reste affichée et n’est pas traitée comme une valeur vide.
+
 Ce comportement simplifie la saisie :
 
 - des focales fixes ;
@@ -182,7 +188,7 @@ La suite couvre actuellement :
 - les groupes d’options (CRUD, assignation, affichage dans le comparateur) ;
 - le filtrage des options par marque dans les formulaires et le gestionnaire de paramètres ;
 - le composant `DualRangeSlider` (rendu, positionnement de la barre de sélection, contrainte basse/haute, valeurs formatées, cas limites) ;
-- la fonction `filterLenses` (tous les types de filtres — textuel, marque, monture, option, statut, plages numériques — filtres combinés, valeurs limites inclusives).
+- la fonction `filterLenses` (tous les types de filtres — textuel, marque, monture, option, type `Fixe`/`Zoom`, statut, plages numériques — filtres combinés, valeurs limites inclusives).
 
 Avant un déploiement, exécutez au minimum :
 

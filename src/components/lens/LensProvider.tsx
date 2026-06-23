@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useMemo, useState } from "react";
 import type { Lens, LensFilters, LensReferenceData } from "@/lib/lens/types";
+import { isPrimeLens } from "@/lib/lens/lens-utils";
 
 export const defaultFilters: LensFilters = {
   query: "", brand: "", mount: "", option: "", kind: "", status: "",
@@ -127,8 +128,8 @@ export function filterLenses(lenses: Lens[], filters: LensFilters) {
     if (filters.brand && lens.brandId !== filters.brand) return false;
     if (filters.mount && lens.mountId !== filters.mount) return false;
     if (filters.option && !lens.options.some((option) => option.id === filters.option)) return false;
-    if (filters.kind === "prime" && lens.focalMinMm !== lens.focalMaxMm) return false;
-    if (filters.kind === "zoom" && lens.focalMinMm === lens.focalMaxMm) return false;
+    if (filters.kind === "prime" && !isPrimeLens(lens)) return false;
+    if (filters.kind === "zoom" && isPrimeLens(lens)) return false;
     if (filters.status === "favorite" && !lens.isFavorite) return false;
     if (filters.status === "next" && !lens.isNextPurchase) return false;
     if (filters.status === "owned" && !lens.isOwned) return false;

@@ -6,6 +6,8 @@ import {
   formatFocalRange,
   formatOptions,
   formatNumber,
+  formatPrice,
+  formatWeight,
   generateLensLabel,
   getLensKind,
   isConstantAperture,
@@ -113,6 +115,16 @@ describe("lens-utils", () => {
    */
   test("formatNumber preserves non-integer precision", () => {
     expect(formatNumber(7.85)).toBe("7.85");
+  });
+
+  test("formatPrice uses spaces for thousands and two decimals", () => {
+    expect(formatPrice(3314)).toBe("3 314.00 €");
+    expect(formatPrice(499)).toBe("499.00 €");
+  });
+
+  test("formatWeight uses spaces for thousands", () => {
+    expect(formatWeight(1079)).toBe("1 079 g");
+    expect(formatWeight(0)).toBe("0 g");
   });
 
   /**

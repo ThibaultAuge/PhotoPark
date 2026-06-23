@@ -1,15 +1,15 @@
 import React from "react";
 import type { Lens, OptionGroup, OptionGroupMember } from "@/lib/lens/types";
-import { formatApertureRange, formatFocalRange, getLensKind } from "@/lib/lens/lens-utils";
+import { formatApertureRange, formatFocalRange, formatPrice, formatWeight, getLensKind } from "@/lib/lens/lens-utils";
 
 const rows: Array<[string, (lens: Lens) => string | number | boolean | null]> = [
   ["Marque", (l) => l.brand], ["Monture", (l) => l.mount], ["Capteur", (l) => l.sensorType === "FULL_FRAME" ? "Plein format" : "APS-C"],
   ["Type", (l) => getLensKind(l)], ["Focale", (l) => formatFocalRange(l)], ["Équiv. APS-C", (l) => formatFocalRange({ focalMinMm: l.apscFocalMinEquivalentMm, focalMaxMm: l.apscFocalMaxEquivalentMm })],
   ["Ouverture max", (l) => formatApertureRange(l)], ["Ouverture min", (l) => { const min = [l.minApertureAtMinFocal, l.minApertureAtMaxFocal].filter(Boolean); return min.length ? `f/${min.join(" / f/")}` : "—"; }],
-  ["Options", (l) => l.options.map((option) => option.code).join(" ") || "—"], ["Filtre", (l) => l.filterDiameterMm ? `${l.filterDiameterMm} mm` : "—"], ["Prix", (l) => l.priceEur ? `${l.priceEur} €` : "—"],
+  ["Options", (l) => l.options.map((option) => option.code).join(" ") || "—"], ["Filtre", (l) => l.filterDiameterMm ? `${l.filterDiameterMm} mm` : "—"], ["Prix", (l) => l.priceEur !== null ? formatPrice(l.priceEur) : "—"],
   ["Distance mini", (l) => l.minFocusDistanceM ? `${l.minFocusDistanceM} m` : "—"], ["Angle min/max", (l) => `${l.angleAtMinFocalDeg ?? "—"}° / ${l.angleAtMaxFocalDeg ?? "—"}°`],
   ["Diaphragme", (l) => l.apertureBlades ? `${l.apertureBlades} lames` : "—"], ["Formule optique", (l) => l.opticalFormula || "—"],
-  ["Poids", (l) => l.weightG ? `${l.weightG} g` : "—"], ["Favori", (l) => l.isFavorite ? "Oui" : "Non"], ["Prochain achat", (l) => l.isNextPurchase ? "Oui" : "Non"], ["Possédé", (l) => l.isOwned ? "Oui" : "Non"]
+  ["Poids", (l) => l.weightG !== null ? formatWeight(l.weightG) : "—"], ["Favori", (l) => l.isFavorite ? "Oui" : "Non"], ["Prochain achat", (l) => l.isNextPurchase ? "Oui" : "Non"], ["Possédé", (l) => l.isOwned ? "Oui" : "Non"]
 ];
 
 function makeGroupRows(groups: OptionGroup[], members: OptionGroupMember[]): Array<[string, (lens: Lens) => string]> {

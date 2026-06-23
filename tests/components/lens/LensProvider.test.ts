@@ -1,6 +1,7 @@
 import { describe, expect, test } from "vitest";
 
 import { filterLenses, defaultFilters } from "../../../src/components/lens/LensProvider";
+import { FOCAL_FILTER_MAX } from "../../../src/lib/lens/filter-constants";
 import type { Lens, LensFilters } from "../../../src/lib/lens/types";
 
 // ---------------------------------------------------------------------------
@@ -108,6 +109,15 @@ const allLenses = [lensPrime, lensTele, lensWide];
 // ---------------------------------------------------------------------------
 
 describe("filterLenses", () => {
+  /**
+   * Verifies that default focal filter bounds reuse the shared focal max
+   * constant for both minimum and maximum focal sliders.
+   */
+  test("default filters use the shared focal max constant", () => {
+    expect(defaultFilters.focalMinHigh).toBe(FOCAL_FILTER_MAX);
+    expect(defaultFilters.focalMaxHigh).toBe(FOCAL_FILTER_MAX);
+  });
+
   // ----- No filter (default) --------------------------------------------
 
   /**
@@ -424,6 +434,27 @@ describe("filterLenses", () => {
     expect(result.map((l) => l.id)).toContain("lens-prime");
   });
 
+  /**
+   * Verifies that focalMinHigh at 300 includes lenses above 300 as 300+.
+   */
+  test("focalMinHigh at 300 includes lenses above 300 as 300+", () => {
+    const lensUltraTele = makeLens({
+      id: "lens-ultra-tele",
+      focalMinMm: 400,
+      focalMaxMm: 600,
+      label: "Canon RF 400-600 f/5.6-8",
+    });
+
+    const filters: LensFilters = {
+      ...defaultFilters,
+      focalMinLow: 300,
+      focalMinHigh: 300,
+    };
+
+    const result = filterLenses([lensPrime, lensTele, lensWide, lensUltraTele], filters);
+    expect(result.map((l) => l.id)).toEqual(["lens-ultra-tele"]);
+  });
+
   // ----- FocalMax range filter -------------------------------------------
 
   /**
@@ -452,6 +483,85 @@ describe("filterLenses", () => {
     };
     const result = filterLenses(allLenses, filters);
     expect(result.map((l) => l.id).sort()).toEqual(["lens-prime", "lens-wide"]);
+  });
+
+  test("focalMaxHigh at 300 includes lenses above 300 as 300+", () => {
+    const lensSuperTele = makeLens({
+      id: "lens-super-tele",
+      focalMinMm: 100,
+      focalMaxMm: 400,
+      label: "Canon RF 100-400 f/5.6-8",
+    });
+
+    const filters: LensFilters = {
+      ...defaultFilters,
+      focalMaxLow: 100,
+      focalMaxHigh: 300,
+    };
+
+    const result = filterLenses([lensPrime, lensTele, lensWide, lensSuperTele], filters);
+    expect(result.map((l) => l.id)).toContain("lens-super-tele");
+  });
+
+  /**
+   * Verifies that focal values exactly at the shared open-ended bound are
+   * still included when the upper bound uses 300+ semantics.
+   */
+  test("open-ended focal filters still include a lens exactly at the shared max", () => {
+    const lensAtSharedMax = makeLens({
+      id: "lens-at-shared-max",
+      focalMinMm: FOCAL_FILTER_MAX,
+      focalMaxMm: FOCAL_FILTER_MAX,
+      label: `Canon RF ${FOCAL_FILTER_MAX} f/5.6`,
+    });
+
+    const result = filterLenses([lensAtSharedMax], {
+      ...defaultFilters,
+      focalMinLow: FOCAL_FILTER_MAX,
+      focalMinHigh: FOCAL_FILTER_MAX,
+      focalMaxLow: FOCAL_FILTER_MAX,
+      focalMaxHigh: FOCAL_FILTER_MAX,
+    });
+
+    expect(result.map((lens) => lens.id)).toEqual(["lens-at-shared-max"]);
+  });
+
+  test("combined focal filters keep ranges matching the 300+ semantics", () => {
+    const lens40to150 = makeLens({
+      id: "lens-40-150",
+      focalMinMm: 40,
+      focalMaxMm: 150,
+      label: "Olympus 40-150",
+    });
+    const lens70to300 = makeLens({
+      id: "lens-70-300",
+      focalMinMm: 70,
+      focalMaxMm: 300,
+      label: "Canon 70-300",
+    });
+    const lens70to400 = makeLens({
+      id: "lens-70-400",
+      focalMinMm: 70,
+      focalMaxMm: 400,
+      label: "Sony 70-400",
+    });
+    const lens24to105 = makeLens({
+      id: "lens-24-105",
+      focalMinMm: 24,
+      focalMaxMm: 105,
+      label: "Canon 24-105",
+    });
+
+    const filters: LensFilters = {
+      ...defaultFilters,
+      focalMinLow: 30,
+      focalMinHigh: 70,
+      focalMaxLow: 100,
+      focalMaxHigh: 300,
+    };
+
+    const result = filterLenses([lens40to150, lens70to300, lens70to400, lens24to105], filters);
+    expect(result.map((l) => l.id).sort()).toEqual(["lens-40-150", "lens-70-300", "lens-70-400"]);
   });
 
   /**

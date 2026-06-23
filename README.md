@@ -16,7 +16,7 @@ Application privée Next.js pour inventorier, filtrer, visualiser et comparer de
 - Relation 1-N entre une marque et les objectifs, et entre une monture et les objectifs.
 - Options associées aux objectifs en N-N avec un code court et une description.
 - Tableau desktop et cartes mobile avec type `Fixe`/`Zoom`, plages identiques compactées (`7.8 mm`, `f/4`), badges de statut dont `Retiré`, prix formatés avec espaces pour les milliers et toujours 2 décimales (`3 314.00 €`), et poids formatés avec espaces pour les milliers (`1 079 g`).
-- Filtres par texte, marque, monture, option, type (`Tous`, `Fixe`, `Zoom`), statut et quatre plages numériques réglables par curseurs à double poignée (focale min 0–1000 mm, focale max 0–1000 mm, ouverture à focale min f/1–f/30, ouverture à focale max f/1–f/30). Les deux plages de focale démarrent sur `0–1000 mm`, donc aucun filtrage de focale n’est appliqué par défaut.
+- Filtres par texte, marque, monture, option, type (`Tous`, `Fixe`, `Zoom`), statut et quatre plages numériques réglables par curseurs à double poignée (focale min 0–300 mm, focale max 0–300+ mm, ouverture à focale min f/1–f/30, ouverture à focale max f/1–f/30). Les deux plages de focale démarrent sur `0–300+ mm`. La borne haute `300` est ouverte et signifie `300 mm et plus`.
 - Graphique SVG interactif focale/ouverture disposé en mise en page deux colonnes (4/5 graphique, 1/5 liste à cocher) avec zoom molette, pan tactile, sélection et masquage d’objectifs. À l’ouverture, il coche automatiquement les objectifs possédés et non retirés.
 - Comparaison de 2 à 5 objectifs avec différences en gras.
 - Navigation multi-pages avec barre de navigation : Objectifs, Boîtiers, Accessoires, Paramètres.

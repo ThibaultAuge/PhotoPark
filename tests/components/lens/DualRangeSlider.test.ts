@@ -74,6 +74,8 @@ function createSliderElement(props: {
   step?: number;
   label?: string;
   formatValue?: (value: number) => string;
+  formatLowValue?: (value: number) => string;
+  formatHighValue?: (value: number) => string;
 }) {
   const onChange = props.onChange ?? vi.fn();
   return DualRangeSlider({
@@ -85,6 +87,8 @@ function createSliderElement(props: {
     step: props.step ?? 1,
     label: props.label ?? "Test",
     formatValue: props.formatValue ?? ((v: number) => String(v)),
+    formatLowValue: props.formatLowValue,
+    formatHighValue: props.formatHighValue,
   });
 }
 
@@ -358,6 +362,29 @@ describe("DualRangeSlider", () => {
     );
 
     expect(markup).toContain("f/2.8 — f/5.6");
+  });
+
+  /**
+   * Verifies that formatLowValue and formatHighValue override the shared
+   * formatter for their respective displayed bounds.
+   */
+  test("uses bound-specific formatter overrides when provided", () => {
+    const markup = renderToStaticMarkup(
+      createElement(DualRangeSlider, {
+        min: 0,
+        max: 300,
+        low: 300,
+        high: 300,
+        onChange: vi.fn(),
+        label: "Focale",
+        formatValue: (v) => `${v} shared`,
+        formatLowValue: (v) => `${v} mm`,
+        formatHighValue: (v) => `${v}+ mm`,
+      }),
+    );
+
+    expect(markup).toContain("300 mm — 300+ mm");
+    expect(markup).not.toContain("300 shared — 300 shared");
   });
 
   // ----- Edge cases -----------------------------------------------------

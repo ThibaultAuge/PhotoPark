@@ -11,6 +11,8 @@ type DualRangeSliderProps = {
   step?: number;
   label: string;
   formatValue?: (value: number) => string;
+  formatLowValue?: (value: number) => string;
+  formatHighValue?: (value: number) => string;
 };
 
 export function DualRangeSlider({
@@ -22,6 +24,8 @@ export function DualRangeSlider({
   step = 1,
   label,
   formatValue = (v) => String(v),
+  formatLowValue,
+  formatHighValue,
 }: DualRangeSliderProps) {
   function handleLowChange(e: React.ChangeEvent<HTMLInputElement>) {
     const newLow = Math.min(Number(e.target.value), high);
@@ -40,13 +44,15 @@ export function DualRangeSlider({
   // Défensif : éviter left > right ou width négative
   const leftP = Math.min(lowPercent, highPercent);
   const widthP = Math.max(highPercent - lowPercent, 0);
+  const lowLabel = (formatLowValue ?? formatValue)(low);
+  const highLabel = (formatHighValue ?? formatValue)(high);
 
   return (
     <div className="dual-range-slider">
       <div className="dual-range-slider-header">
         <span className="dual-range-slider-label">{label}</span>
         <span className="dual-range-slider-values">
-          {formatValue(low)} — {formatValue(high)}
+          {lowLabel} — {highLabel}
         </span>
       </div>
       <div className="dual-range-slider-track">

@@ -2,12 +2,13 @@
 
 import { createContext, useContext, useMemo, useState } from "react";
 import type { Lens, LensFilters, LensReferenceData } from "@/lib/lens/types";
+import { FOCAL_FILTER_MAX } from "@/lib/lens/filter-constants";
 import { isPrimeLens } from "@/lib/lens/lens-utils";
 
 export const defaultFilters: LensFilters = {
   query: "", brand: "", mount: "", option: "", kind: "", status: "",
-  focalMinLow: 0, focalMinHigh: 1000,
-  focalMaxLow: 0, focalMaxHigh: 1000,
+  focalMinLow: 0, focalMinHigh: FOCAL_FILTER_MAX,
+  focalMaxLow: 0, focalMaxHigh: FOCAL_FILTER_MAX,
   apertureAtMinLow: 1, apertureAtMinHigh: 30,
   apertureAtMaxLow: 1, apertureAtMaxHigh: 30,
 };
@@ -116,6 +117,9 @@ export function LensProvider({
 
 export function filterLenses(lenses: Lens[], filters: LensFilters) {
   const query = filters.query.trim().toLowerCase();
+  const hasOpenEndedFocalMinHigh = filters.focalMinHigh >= FOCAL_FILTER_MAX;
+  const hasOpenEndedFocalMaxHigh = filters.focalMaxHigh >= FOCAL_FILTER_MAX;
+
   return lenses.filter((lens) => {
     if (
       query &&
@@ -135,10 +139,10 @@ export function filterLenses(lenses: Lens[], filters: LensFilters) {
     if (filters.status === "owned" && !lens.isOwned) return false;
     // Focale min : focalMinMm doit être dans [focalMinLow, focalMinHigh]
     if (lens.focalMinMm < filters.focalMinLow) return false;
-    if (lens.focalMinMm > filters.focalMinHigh) return false;
+    if (!hasOpenEndedFocalMinHigh && lens.focalMinMm > filters.focalMinHigh) return false;
     // Focale max : focalMaxMm doit être dans [focalMaxLow, focalMaxHigh]
     if (lens.focalMaxMm < filters.focalMaxLow) return false;
-    if (lens.focalMaxMm > filters.focalMaxHigh) return false;
+    if (!hasOpenEndedFocalMaxHigh && lens.focalMaxMm > filters.focalMaxHigh) return false;
     // Ouverture à focale min : maxApertureAtMinFocal dans [apertureAtMinLow, apertureAtMinHigh]
     if (lens.maxApertureAtMinFocal < filters.apertureAtMinLow) return false;
     if (lens.maxApertureAtMinFocal > filters.apertureAtMinHigh) return false;

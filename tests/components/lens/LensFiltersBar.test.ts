@@ -4,6 +4,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, test, vi } from "vitest";
 
 import { LensFiltersBar } from "../../../src/components/lens/LensFiltersBar";
+import { DualRangeSlider } from "../../../src/components/lens/DualRangeSlider";
 import type { LensFilters, LensReferenceData } from "../../../src/lib/lens/types";
 
 const referenceData: LensReferenceData = {
@@ -22,9 +23,9 @@ const filters: LensFilters = {
   kind: "",
   status: "",
   focalMinLow: 0,
-  focalMinHigh: 1000,
+  focalMinHigh: 300,
   focalMaxLow: 0,
-  focalMaxHigh: 1000,
+  focalMaxHigh: 300,
   apertureAtMinLow: 1,
   apertureAtMinHigh: 30,
   apertureAtMaxLow: 1,
@@ -79,6 +80,68 @@ describe("LensFiltersBar", () => {
     expect(selects.length).toBeGreaterThan(0);
   });
 
+  test("renders focal slider values with 300+ upper bound", () => {
+    const html = renderToStaticMarkup(createElement(LensFiltersBar, {
+      filters,
+      setFilters: vi.fn(),
+      referenceData,
+      onReset: vi.fn(),
+    }));
+
+    expect(html).toContain("0 mm — 300+ mm");
+  });
+
+  test("renders focal lower bound at 300 without plus suffix", () => {
+    const html = renderToStaticMarkup(createElement(LensFiltersBar, {
+      filters: {
+        ...filters,
+        focalMinLow: 300,
+        focalMinHigh: 300,
+      },
+      setFilters: vi.fn(),
+      referenceData,
+      onReset: vi.fn(),
+    }));
+
+    expect(html).toContain("300 mm — 300+ mm");
+  });
+
+  test("passes 300 as max to both focal sliders", () => {
+    const tree = LensFiltersBar({
+      filters,
+      setFilters: vi.fn(),
+      referenceData,
+      onReset: vi.fn(),
+    });
+
+    const focalSliders = findElements(
+      tree,
+      (props, type) =>
+        type === DualRangeSlider &&
+        (props.label === "Focale min" || props.label === "Focale max"),
+    );
+
+    expect(focalSliders).toHaveLength(2);
+    expect(focalSliders[0].props.max).toBe(300);
+    expect(focalSliders[1].props.max).toBe(300);
+  });
+
+  test("renders focal slider values below 300 without plus suffix", () => {
+    const html = renderToStaticMarkup(createElement(LensFiltersBar, {
+      filters: {
+        ...filters,
+        focalMinLow: 40,
+        focalMinHigh: 150,
+      },
+      setFilters: vi.fn(),
+      referenceData,
+      onReset: vi.fn(),
+    }));
+
+    expect(html).toContain("40 mm — 150 mm");
+    expect(html).not.toContain("150+ mm");
+  });
+
   test("type select onChange updates filters.kind", () => {
     const setFilters = vi.fn();
     const tree = LensFiltersBar({
@@ -88,10 +151,7 @@ describe("LensFiltersBar", () => {
       onReset: vi.fn(),
     });
 
-    const typeSelect = findElements(
-      tree,
-      (props, type) => type === "select" && Array.isArray(props.children) && String(props.children).includes("Fixe"),
-    )[0];
+    const typeSelect = findElements(tree, (_props, type) => type === "select")[2];
 
     expect(typeSelect).toBeDefined();
     (typeSelect.props.onChange as (event: { target: { value: string } }) => void)({ target: { value: "prime" } });

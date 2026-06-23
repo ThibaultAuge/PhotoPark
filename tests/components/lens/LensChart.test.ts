@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, test, vi } from "vitest";
 
 import { LensChart } from "../../../src/components/lens/LensChart";
 import type { Lens } from "../../../src/lib/lens/types";
+import { buildStableLensColorMap } from "../../../src/lib/lens/chart-colors";
 
 // ---------------------------------------------------------------------------
 // Mock React hooks for function-call behaviour tests
@@ -114,6 +115,7 @@ function renderChart(lenses: Lens[], selectedIds: string[] = []) {
       lenses,
       selectedIds,
       onToggleSelected: vi.fn(),
+      lensColors: buildStableLensColorMap(lenses),
     }),
   );
 }
@@ -168,6 +170,7 @@ function renderChartTree(lenses: Lens[], selectedIds: string[] = []) {
     lenses,
     selectedIds,
     onToggleSelected,
+    lensColors: buildStableLensColorMap(lenses),
   });
   return { tree, onToggleSelected };
 }
@@ -238,29 +241,30 @@ describe("LensChart", () => {
 
   // ----- Data-dependent rendering ---------------------------------------
 
-  test("selected lenses use orange highlight colour", () => {
+  test("selected lenses keep their assigned colour", () => {
     const markup = renderChart([baseLens], [baseLens.id]);
 
-    expect(markup).toContain("#f97316");
-    expect(markup).toContain('stroke="#f97316"');
-    expect(markup).toContain('fill="#f97316"');
+    expect(markup).toContain('stroke="#2563eb"');
+    expect(markup).toContain('fill="#2563eb"');
+    expect(markup).toContain('stroke-width="5"');
   });
 
-  test("non-selected lenses do not use orange colour", () => {
+  test("renders label text in the markup", () => {
     const markup = renderChart([baseLens]);
 
-    expect(markup).not.toContain("#f97316");
+    expect(markup).toContain("Sigma E 24-70 f/2.8-4");
+    expect(markup).toContain('class="chart-label"');
   });
 
-  test("renders two circles for zoom lens", () => {
+  test("renders two triangles for zoom lens", () => {
     const { tree } = renderChartTree([baseLens]);
 
-    const circles = findElements(
+    const polygons = findElements(
       tree,
-      (props, type) => type === "circle",
+      (_props, type) => type === "polygon",
     );
 
-    expect(circles).toHaveLength(2);
+    expect(polygons).toHaveLength(2);
   });
 
   test("renders one circle for prime lens", () => {
@@ -272,6 +276,50 @@ describe("LensChart", () => {
     );
 
     expect(circles).toHaveLength(1);
+  });
+
+  /** Verifies that selected prime markers keep their color and gain a white outline */
+  test("selected prime marker gets a white outline", () => {
+    const { tree } = renderChartTree([primeLens], [primeLens.id]);
+
+    const circles = findElements(
+      tree,
+      (_props, type) => type === "circle",
+    );
+
+    expect(circles).toHaveLength(1);
+    expect(circles[0].props.stroke).toBe("#ffffff");
+    expect(circles[0].props.fill).toBe("#2563eb");
+  });
+
+  /** Verifies that selected zoom markers keep their color and gain white outlines */
+  test("selected zoom markers get white outlines", () => {
+    const { tree } = renderChartTree([baseLens], [baseLens.id]);
+
+    const polygons = findElements(
+      tree,
+      (_props, type) => type === "polygon",
+    );
+
+    expect(polygons).toHaveLength(2);
+    expect(polygons[0].props.stroke).toBe("#ffffff");
+    expect(polygons[1].props.stroke).toBe("#ffffff");
+    expect(polygons[0].props.fill).toBe("#2563eb");
+    expect(polygons[1].props.fill).toBe("#2563eb");
+  });
+
+  /** Verifies that chart labels use the same assigned color as their lens line */
+  test("chart labels use the assigned lens color", () => {
+    const { tree } = renderChartTree([baseLens, primeLens]);
+
+    const labels = findElements(
+      tree,
+      (props, type) => type === "text" && props.className === "chart-label",
+    );
+
+    expect(labels).toHaveLength(2);
+    expect(labels[0].props.fill).toBe("#2563eb");
+    expect(labels[1].props.fill).toBe("#16a34a");
   });
 
   // ----- Interaction: click handlers ------------------------------------
@@ -292,8 +340,8 @@ describe("LensChart", () => {
     expect(onToggleSelected).toHaveBeenCalledWith(baseLens.id);
   });
 
-  test("clicking lens circle calls onToggleSelected", () => {
-    const { tree, onToggleSelected } = renderChartTree([baseLens]);
+  test("clicking prime marker calls onToggleSelected", () => {
+    const { tree, onToggleSelected } = renderChartTree([primeLens]);
 
     const circles = findElements(
       tree,
@@ -303,6 +351,38 @@ describe("LensChart", () => {
 
     expect(circles.length).toBeGreaterThanOrEqual(1);
     (circles[0].props.onClick as () => void)();
+
+    expect(onToggleSelected).toHaveBeenCalledTimes(1);
+    expect(onToggleSelected).toHaveBeenCalledWith(primeLens.id);
+  });
+
+  test("clicking zoom triangle calls onToggleSelected", () => {
+    const { tree, onToggleSelected } = renderChartTree([baseLens]);
+
+    const polygons = findElements(
+      tree,
+      (props, type) =>
+        type === "polygon" && typeof props.onClick === "function",
+    );
+
+    expect(polygons.length).toBeGreaterThanOrEqual(1);
+    (polygons[0].props.onClick as () => void)();
+
+    expect(onToggleSelected).toHaveBeenCalledTimes(1);
+    expect(onToggleSelected).toHaveBeenCalledWith(baseLens.id);
+  });
+
+  test("clicking chart label calls onToggleSelected once", () => {
+    const { tree, onToggleSelected } = renderChartTree([baseLens]);
+
+    const labels = findElements(
+      tree,
+      (props, type) =>
+        type === "text" && props.className === "chart-label" && typeof props.onClick === "function",
+    );
+
+    expect(labels).toHaveLength(1);
+    (labels[0].props.onClick as () => void)();
 
     expect(onToggleSelected).toHaveBeenCalledTimes(1);
     expect(onToggleSelected).toHaveBeenCalledWith(baseLens.id);
@@ -408,6 +488,6 @@ describe("LensChart", () => {
   test("handles empty selectedIds gracefully", () => {
     const markup = renderChart([baseLens], []);
 
-    expect(markup).not.toContain("#f97316");
+    expect(markup).toContain("#2563eb");
   });
 });

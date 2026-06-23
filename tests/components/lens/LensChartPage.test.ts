@@ -229,6 +229,7 @@ import { LensChartPage } from "../../../src/components/lens/LensChartPage";
 import { LensChart } from "@/components/lens/LensChart";
 import { LensForm } from "@/components/lens/LensForm";
 import { LensComparePopup } from "@/components/lens/LensComparePopup";
+import { buildStableLensColorMap } from "../../../src/lib/lens/chart-colors";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -610,6 +611,67 @@ describe("LensChartPage", () => {
     expect(chartElements[0].props.onToggleSelected).toBe(
       mockContext.toggleSelected,
     );
+  });
+
+  test("LensChart receives stable lens colors keyed by id", () => {
+    reactHookMocks.useState = (initialValue: unknown) => [[lens1.id, lens3.id], vi.fn()];
+    reactHookMocks.useCallback = (fn: () => unknown) => fn;
+
+    const tree = renderChartPageTree();
+    const chartElements = findElements(
+      tree,
+      (_props, type) => type === LensChart,
+    );
+
+    expect(chartElements).toHaveLength(1);
+    expect(chartElements[0].props.lensColors).toEqual(
+      buildStableLensColorMap(mockContext.initialLenses),
+    );
+  });
+
+  /** Verifies that selected sidebar items use chart color backgrounds and contrast text */
+  test("selected sidebar items use chart color background with contrast text", () => {
+    reactHookMocks.useState = (initialValue: unknown) => [[], vi.fn()];
+    reactHookMocks.useCallback = (fn: () => unknown) => fn;
+    mockContext.selectedIds = [lens1.id, lens2.id];
+
+    const tree = renderChartPageTree();
+    const items = findElements(
+      tree,
+      (props, type) =>
+        type === "li" &&
+        typeof props.className === "string" &&
+        (props.className as string).includes("chart-lens-item"),
+    );
+
+    expect(items[1].props.style).toEqual({
+      backgroundColor: "#16a34a",
+      color: "#ffffff",
+    });
+    expect(items[0].props.style).toEqual({
+      backgroundColor: "#2563eb",
+      color: "#ffffff",
+    });
+    expect(items[3].props.style).toBeUndefined();
+  });
+
+  /** Verifies that selected checkboxes switch accent color to the computed contrast text */
+  test("selected sidebar checkboxes use contrast accent colors", () => {
+    reactHookMocks.useState = (initialValue: unknown) => [[], vi.fn()];
+    reactHookMocks.useCallback = (fn: () => unknown) => fn;
+    mockContext.selectedIds = [lens1.id, lens2.id];
+
+    const tree = renderChartPageTree();
+    const checkboxes = findElements(
+      tree,
+      (props, type) => type === "input" && props.type === "checkbox",
+    );
+
+    expect(checkboxes).toHaveLength(4);
+    expect(checkboxes[0].props.style).toEqual({ accentColor: "#ffffff" });
+    expect(checkboxes[1].props.style).toEqual({ accentColor: "#ffffff" });
+    expect(checkboxes[2].props.style).toBeUndefined();
+    expect(checkboxes[3].props.style).toBeUndefined();
   });
 
   /**

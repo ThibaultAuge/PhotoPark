@@ -88,7 +88,9 @@ small { color: var(--muted); }
 .chart-actions { display: flex; gap: 8px; align-items: center; flex-shrink: 0; }
 .axis { stroke: #94a3b8; stroke-width: 1; }
 .axis-label, .tick { fill: #64748b; font-size: 12px; }
-.chart-item line, .chart-item circle { cursor: pointer; }
+.chart-item line, .chart-item circle, .chart-item polygon, .chart-item text, .chart-item g { cursor: pointer; }
+.chart-line-selected { filter: drop-shadow(0 0 2px rgba(255,255,255,0.9)); }
+.chart-label { font-size: 10px; font-weight: 700; letter-spacing: 0.01em; }
 .empty-chart-text { fill: #94a3b8; font-size: 14px; }
 
 .compare-table td strong { color: #c2410c; }
@@ -242,16 +244,14 @@ small { color: var(--muted); }
   background: #eef2ff;
 }
 .chart-lens-item.selected {
-  background: #fff7ed;
-  outline: 2px solid #fb923c;
+  outline: 2px solid rgba(15, 23, 42, 0.18);
   outline-offset: -2px;
 }
 .chart-lens-item.checked {
   background: #f0f9ff;
 }
 .chart-lens-item.checked.selected {
-  background: #fef3c7;
-  outline-color: #d97706;
+  outline-color: rgba(15, 23, 42, 0.28);
 }
 .chart-lens-compare-btn {
   background: none;
@@ -271,6 +271,13 @@ small { color: var(--muted); }
 .chart-lens-compare-btn.active {
   color: #f97316;
 }
+.chart-lens-item.selected .chart-lens-compare-btn,
+.chart-lens-item.selected .chart-lens-compare-btn.active,
+.chart-lens-item.selected .chart-lens-compare-btn:hover,
+.chart-lens-item.selected .chart-lens-item-label,
+.chart-lens-item.selected label {
+  color: inherit;
+}
 .chart-lens-item label {
   display: flex;
   align-items: center;
@@ -283,7 +290,7 @@ small { color: var(--muted); }
   width: 16px;
   height: 16px;
   cursor: pointer;
-  accent-color: #f97316;
+  accent-color: currentColor;
 }
 .chart-lens-item-label {
   font-size: 0.85rem;

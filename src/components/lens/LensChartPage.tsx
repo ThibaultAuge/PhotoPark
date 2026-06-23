@@ -6,6 +6,11 @@ import { LensFiltersBar } from "@/components/lens/LensFiltersBar";
 import { LensChart } from "@/components/lens/LensChart";
 import { LensComparePopup } from "@/components/lens/LensComparePopup";
 import { LensForm } from "@/components/lens/LensForm";
+import {
+  buildStableLensColorMap,
+  DEFAULT_CHART_COLOR,
+  getContrastTextColor,
+} from "@/lib/lens/chart-colors";
 
 export function LensChartPage() {
   const {
@@ -36,21 +41,23 @@ export function LensChartPage() {
     );
   }, []);
 
-  // Memoised derived arrays to avoid unnecessary re-renders of chart/compare
-  const checkedLenses = useMemo(
-    () => initialLenses.filter((lens) => checkedIds.includes(lens.id)),
-    [initialLenses, checkedIds],
-  );
-  const selectedLenses = useMemo(
-    () => initialLenses.filter((lens) => selectedIds.includes(lens.id)),
-    [initialLenses, selectedIds],
-  );
-
-  // O(1) lookups for the render loop
+  // Memoised derived sets/arrays to avoid unnecessary re-renders of chart/compare
   const checkedSet = useMemo(() => new Set(checkedIds), [checkedIds]);
   const selectedSet = useMemo(
     () => new Set(selectedIds),
     [selectedIds],
+  );
+  const checkedLenses = useMemo(
+    () => initialLenses.filter((lens) => checkedSet.has(lens.id)),
+    [initialLenses, checkedSet],
+  );
+  const selectedLenses = useMemo(
+    () => initialLenses.filter((lens) => selectedSet.has(lens.id)),
+    [initialLenses, selectedSet],
+  );
+  const lensColors = useMemo(
+    () => buildStableLensColorMap(initialLenses),
+    [initialLenses],
   );
 
   return (
@@ -88,6 +95,7 @@ export function LensChartPage() {
           lenses={checkedLenses}
           selectedIds={selectedIds}
           onToggleSelected={toggleSelected}
+          lensColors={lensColors}
         />
       </div>
 
@@ -107,10 +115,20 @@ export function LensChartPage() {
               {filteredLenses.map((lens) => {
                 const isChecked = checkedSet.has(lens.id);
                 const isSelected = selectedSet.has(lens.id);
+                const lensColor = lensColors[lens.id] ?? DEFAULT_CHART_COLOR;
+                const itemTextColor = getContrastTextColor(lensColor);
                 return (
                   <li
                     key={lens.id}
                     className={`chart-lens-item${isChecked ? " checked" : ""}${isSelected ? " selected" : ""}`}
+                    style={
+                      isSelected
+                        ? {
+                            backgroundColor: lensColor,
+                            color: itemTextColor,
+                          }
+                        : undefined
+                    }
                   >
                     <label>
                       <input
@@ -118,6 +136,7 @@ export function LensChartPage() {
                         checked={isChecked}
                         onChange={() => toggleChecked(lens.id)}
                         title="Afficher sur le graphique"
+                        style={isSelected ? { accentColor: itemTextColor } : undefined}
                       />
                     </label>
                     <span

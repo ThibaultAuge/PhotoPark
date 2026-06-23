@@ -10,14 +10,14 @@ Application privée Next.js pour inventorier, filtrer, visualiser et comparer de
 - Rate limiting du formulaire de connexion.
 - Protection d’origine sur les actions mutatives.
 - Stockage SQLite local avec `better-sqlite3`.
-- CRUD complet des objectifs.
+- CRUD complet des objectifs, avec statut `Retiré`.
 - Import client depuis un libellé d’objectif pour préremplir le formulaire.
 - Référentiels administrables pour les marques, les montures et les options, ces dernières étant liées à une marque spécifique.
 - Relation 1-N entre une marque et les objectifs, et entre une monture et les objectifs.
 - Options associées aux objectifs en N-N avec un code court et une description.
-- Tableau desktop et cartes mobile avec type `Fixe`/`Zoom` et plages identiques compactées (`7.8 mm`, `f/4`).
-- Filtres par texte, monture, capteur, statut, focale et ouverture.
-- Graphique SVG interactif focale/ouverture avec zoom molette, pan tactile, sélection et masquage d’objectifs.
+- Tableau desktop et cartes mobile avec type `Fixe`/`Zoom`, plages identiques compactées (`7.8 mm`, `f/4`) et badges de statut dont `Retiré`.
+- Filtres par texte, marque, monture, option, statut et quatre plages numériques réglables par curseurs à double poignée (focale min 0–1000 mm, focale max 0–1000 mm, ouverture à focale min f/1–f/30, ouverture à focale max f/1–f/30).
+- Graphique SVG interactif focale/ouverture disposé en mise en page deux colonnes (4/5 graphique, 1/5 liste à cocher) avec zoom molette, pan tactile, sélection et masquage d’objectifs. À l’ouverture, il coche automatiquement les objectifs possédés et non retirés.
 - Comparaison de 2 à 5 objectifs avec différences en gras.
 - Navigation multi-pages avec barre de navigation : Objectifs, Boîtiers, Accessoires, Paramètres.
 - Pages paramètres séparées pour les marques, les montures, les options et les groupes d’options.
@@ -84,6 +84,18 @@ Ouvrez ensuite l’URL affichée par Next.js, généralement `http://localhost:3
 
 ## Saisie des objectifs
 
+### Statut Retiré
+
+Le formulaire d’objectif inclut une case à cocher `Retiré`.
+
+Activez-la pour marquer un objectif retiré de votre parc sans le supprimer de l’historique.
+
+Quand un objectif est retiré :
+
+- l’interface affiche le badge `Retiré` ;
+- ce statut peut apparaître avec les autres badges ;
+- la page du graphique ne le coche pas automatiquement au chargement, même s’il est marqué comme possédé.
+
 ### Import depuis un libellé
 
 Dans le formulaire d’objectif, collez un libellé dans le champ `Libellé` pour préremplir les champs structurés lorsque les éléments existent déjà dans les référentiels.
@@ -120,7 +132,7 @@ Exemple pour un objectif `50 mm f/1.8` : renseignez `Ouverture max à min focale
 
 ### Détection des doublons
 
-Lorsque vous enregistrez un objectif, l’application vérifie qu’aucun objectif existant ne possède la même combinaison des six champs suivants :
+Lors de la création ou de la modification d’un objectif, l’application vérifie qu’aucun autre objectif n’utilise déjà la même combinaison des six champs suivants :
 
 - Marque
 - Monture
@@ -129,9 +141,13 @@ Lorsque vous enregistrez un objectif, l’application vérifie qu’aucun object
 - Ouverture max à min focale
 - Ouverture max à max focale
 
-Si un doublon est détecté, le formulaire reste ouvert et un message d’erreur s’affiche en haut de la fenêtre avec le libellé de l’objectif existant. Vous pouvez modifier les champs en conflit ou annuler la création.
+Si un doublon est détecté, le formulaire reste ouvert et un message d’erreur s’affiche en haut de la fenêtre avec le libellé de l’objectif existant. Vous pouvez modifier les champs en conflit ou annuler.
 
-Cette vérification s’applique aussi lors de la modification d’un objectif : le système exclut l’objectif en cours de modification de la recherche, ce qui permet de sauvegarder sans conflit si seules des champs hors des six critères changent.
+Lors d’une modification, le système exclut l’objectif en cours de modification de la recherche. Vous pouvez donc enregistrer des changements sur des champs hors de ces six critères.
+
+Si votre base contient déjà un doublon historique identique, vous pouvez aussi modifier l’objectif actuel tant que vous ne changez pas ces six champs d’identité.
+
+En revanche, si la modification change ces champs d’identité et entre en collision avec un autre objectif existant, l’enregistrement reste refusé.
 
 ## Scripts
 
@@ -147,7 +163,7 @@ Cette vérification s’applique aussi lors de la modification d’un objectif :
 
 ## Tests
 
-Les tests utilisent Vitest avec l’environnement Node. La suite contient actuellement 185 tests.
+Les tests utilisent Vitest avec l’environnement Node. La suite contient actuellement 230 tests.
 
 ```bash
 npm run test
@@ -164,7 +180,9 @@ La suite couvre actuellement :
 - le calcul des équivalents APS-C ;
 - les helpers de formatage ;
 - les groupes d’options (CRUD, assignation, affichage dans le comparateur) ;
-- le filtrage des options par marque dans les formulaires et le gestionnaire de paramètres.
+- le filtrage des options par marque dans les formulaires et le gestionnaire de paramètres ;
+- le composant `DualRangeSlider` (rendu, positionnement de la barre de sélection, contrainte basse/haute, valeurs formatées, cas limites) ;
+- la fonction `filterLenses` (tous les types de filtres — textuel, marque, monture, option, statut, plages numériques — filtres combinés, valeurs limites inclusives).
 
 Avant un déploiement, exécutez au minimum :
 
@@ -303,6 +321,8 @@ Une migration legacy convertit automatiquement les anciennes colonnes libres `br
 - Les objectifs migrés référencent ensuite les nouveaux identifiants de marque, monture et options.
 
 Une migration ultérieure ajoute la colonne `brandId` à la table `lens_options` et impose la contrainte `UNIQUE(code, brandId)`. Les options orphelines (sans marque) sont automatiquement liées à la marque « Autre » créée lors de la migration. La table `lens_option_links` est également recréée si sa clé étrangère pointe encore vers une table legacy `lenses_legacy_*`.
+
+Au démarrage, l’application répare aussi automatiquement les bases SQLite existantes si la table `lenses` ne contient pas encore les colonnes `minApertureAtMinFocal`, `minApertureAtMaxFocal` ou `retired`.
 
 Avant de lancer une version contenant cette migration sur une base existante, créez une sauvegarde du fichier SQLite.
 

@@ -41,7 +41,8 @@ function validLensInput(optionIds: string[] = [OPTION_L_ID]): LensInput {
     weightG: 695,
     isFavorite: false,
     isNextPurchase: false,
-    isOwned: true
+    isOwned: true,
+    retired: false
   };
 }
 
@@ -77,6 +78,7 @@ function createDatabaseWithLegacyOptionLinkForeignKey(path: string) {
       isFavorite INTEGER NOT NULL DEFAULT 0,
       isNextPurchase INTEGER NOT NULL DEFAULT 0,
       isOwned INTEGER NOT NULL DEFAULT 0,
+      retired INTEGER NOT NULL DEFAULT 0,
       createdAt TEXT NOT NULL,
       updatedAt TEXT NOT NULL
     );
@@ -98,6 +100,55 @@ function createDatabaseWithLegacyOptionLinkForeignKey(path: string) {
       '${LENS_ID}', '${BRAND_ID}', '${MOUNT_ID}', 24, 70, 36, 105, 2.8, 4, NULL, NULL,
       'Canon RF 24-70 f/2.8-4 L', 82, 1200, 0.38, 84, 34, 9, NULL,
       695, 0, 0, 1, '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z'
+    );
+    INSERT INTO lens_option_links (lensId, optionId) VALUES ('${LENS_ID}', '${OPTION_L_ID}');
+  `);
+  database.close();
+}
+
+function createDatabaseWithMissingLensColumns(path: string) {
+  const database = new Database(path);
+  database.pragma("foreign_keys = OFF");
+  database.exec(`
+    CREATE TABLE brands (id TEXT PRIMARY KEY, name TEXT NOT NULL UNIQUE COLLATE NOCASE, createdAt TEXT NOT NULL, updatedAt TEXT NOT NULL);
+    CREATE TABLE mounts (id TEXT PRIMARY KEY, name TEXT NOT NULL UNIQUE COLLATE NOCASE, sensorType TEXT NOT NULL CHECK(sensorType IN ('FULL_FRAME', 'APS_C')), createdAt TEXT NOT NULL, updatedAt TEXT NOT NULL);
+    CREATE TABLE lens_options (
+      id TEXT PRIMARY KEY,
+      code TEXT NOT NULL COLLATE NOCASE,
+      description TEXT NOT NULL,
+      brandId TEXT NOT NULL REFERENCES brands(id) ON DELETE RESTRICT,
+      createdAt TEXT NOT NULL,
+      updatedAt TEXT NOT NULL,
+      UNIQUE(code, brandId)
+    );
+    CREATE TABLE lenses (
+      id TEXT PRIMARY KEY,
+      brandId TEXT NOT NULL REFERENCES brands(id) ON UPDATE CASCADE ON DELETE RESTRICT,
+      mountId TEXT NOT NULL REFERENCES mounts(id) ON UPDATE CASCADE ON DELETE RESTRICT,
+      focalMinMm REAL NOT NULL,
+      focalMaxMm REAL NOT NULL,
+      apscFocalMinEquivalentMm REAL NOT NULL,
+      apscFocalMaxEquivalentMm REAL NOT NULL,
+      maxApertureAtMinFocal REAL NOT NULL,
+      maxApertureAtMaxFocal REAL NOT NULL,
+      label TEXT NOT NULL,
+      createdAt TEXT NOT NULL,
+      updatedAt TEXT NOT NULL
+    );
+    CREATE TABLE lens_option_links (
+      lensId TEXT NOT NULL REFERENCES lenses(id) ON DELETE CASCADE,
+      optionId TEXT NOT NULL REFERENCES lens_options(id) ON DELETE RESTRICT,
+      PRIMARY KEY (lensId, optionId)
+    );
+    INSERT INTO brands (id, name, createdAt, updatedAt) VALUES ('${BRAND_ID}', 'Canon', '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z');
+    INSERT INTO mounts (id, name, sensorType, createdAt, updatedAt) VALUES ('${MOUNT_ID}', 'Canon RF', 'FULL_FRAME', '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z');
+    INSERT INTO lens_options (id, code, description, brandId, createdAt, updatedAt) VALUES ('${OPTION_L_ID}', 'L', 'Série professionnelle Canon L', '${BRAND_ID}', '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z');
+    INSERT INTO lenses (
+      id, brandId, mountId, focalMinMm, focalMaxMm, apscFocalMinEquivalentMm, apscFocalMaxEquivalentMm,
+      maxApertureAtMinFocal, maxApertureAtMaxFocal, label, createdAt, updatedAt
+    ) VALUES (
+      '${LENS_ID}', '${BRAND_ID}', '${MOUNT_ID}', 24, 70, 36, 105, 2.8, 4,
+      'Canon RF 24-70 f/2.8-4 L', '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z'
     );
     INSERT INTO lens_option_links (lensId, optionId) VALUES ('${LENS_ID}', '${OPTION_L_ID}');
   `);
@@ -134,6 +185,34 @@ describe("lens repository", () => {
     const backupTables = database.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name LIKE 'lens_option_links_invalid_%'").all();
     database.close();
     expect(backupTables).toEqual([]);
+  });
+
+  test("updateLens migrates missing optional and retired columns on existing databases", async () => {
+    const databasePath = useIsolatedDatabasePath();
+    createDatabaseWithMissingLensColumns(databasePath);
+    vi.resetModules();
+
+    const { listLenses, updateLens } = await import("../../../src/lib/db/lens-repository");
+
+    expect(() => updateLens(LENS_ID, { ...validLensInput([OPTION_L_ID]), retired: true })).not.toThrow();
+
+    const [updatedLens] = listLenses();
+    expect(updatedLens.opticalFormula).toBeNull();
+    expect(updatedLens.filterDiameterMm).toBe(82);
+    expect(updatedLens.priceEur).toBe(1200);
+    expect(updatedLens.minApertureAtMinFocal).toBeNull();
+    expect(updatedLens.minApertureAtMaxFocal).toBeNull();
+    expect(updatedLens.retired).toBe(true);
+
+    const database = new Database(databasePath, { readonly: true });
+    const columnNames = (database.prepare("PRAGMA table_info(lenses)").all() as Array<{ name: string }>).map((column) => column.name);
+    database.close();
+
+    expect(columnNames).toContain("minApertureAtMinFocal");
+    expect(columnNames).toContain("minApertureAtMaxFocal");
+    expect(columnNames).toContain("opticalFormula");
+    expect(columnNames).toContain("filterDiameterMm");
+    expect(columnNames).toContain("retired");
   });
 
   /**
@@ -196,6 +275,108 @@ describe("lens repository", () => {
 
     // Updating with the same values should succeed (excludes current ID)
     expect(() => updateLens(lens.id, validLensInput([OPTION_L_ID]))).not.toThrow();
+  });
+
+  test("updateLens allows editing non-identity fields when an identical duplicate already exists", async () => {
+    const databasePath = useIsolatedDatabasePath();
+    vi.resetModules();
+    const { createLens, updateLens, listLenses } = await import("../../../src/lib/db/lens-repository");
+
+    const lens = createLens(validLensInput([OPTION_L_ID]));
+
+    const database = new Database(databasePath);
+    const duplicateId = randomUUID();
+    database.prepare(`INSERT INTO lenses (
+      id, brandId, mountId, focalMinMm, focalMaxMm, apscFocalMinEquivalentMm, apscFocalMaxEquivalentMm,
+      maxApertureAtMinFocal, maxApertureAtMaxFocal, minApertureAtMinFocal, minApertureAtMaxFocal, label, filterDiameterMm, priceEur,
+      minFocusDistanceM, angleAtMinFocalDeg, angleAtMaxFocalDeg, apertureBlades, opticalFormula, weightG,
+      isFavorite, isNextPurchase, isOwned, retired, createdAt, updatedAt
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+      .run(
+        duplicateId,
+        lens.brandId,
+        lens.mountId,
+        lens.focalMinMm,
+        lens.focalMaxMm,
+        lens.apscFocalMinEquivalentMm,
+        lens.apscFocalMaxEquivalentMm,
+        lens.maxApertureAtMinFocal,
+        lens.maxApertureAtMaxFocal,
+        lens.minApertureAtMinFocal,
+        lens.minApertureAtMaxFocal,
+        lens.label,
+        lens.filterDiameterMm,
+        lens.priceEur,
+        lens.minFocusDistanceM,
+        lens.angleAtMinFocalDeg,
+        lens.angleAtMaxFocalDeg,
+        lens.apertureBlades,
+        lens.opticalFormula,
+        lens.weightG,
+        lens.isFavorite ? 1 : 0,
+        lens.isNextPurchase ? 1 : 0,
+        lens.isOwned ? 1 : 0,
+        lens.retired ? 1 : 0,
+        lens.createdAt,
+        lens.updatedAt,
+      );
+    database.prepare("INSERT INTO lens_option_links (lensId, optionId) VALUES (?, ?)").run(duplicateId, OPTION_L_ID);
+    database.close();
+
+    expect(() => updateLens(lens.id, { ...validLensInput([OPTION_L_ID]), retired: true })).not.toThrow();
+
+    const updated = listLenses().find((entry) => entry.id === lens.id);
+    const untouchedDuplicate = listLenses().find((entry) => entry.id === duplicateId);
+    expect(updated?.retired).toBe(true);
+    expect(untouchedDuplicate?.retired).toBe(false);
+  });
+
+  /**
+   * Verifies that a lens created with retired:true is persisted and
+   * retrieved with retired=true.
+   */
+  test("createLens stores retired flag as true", async () => {
+    useIsolatedDatabasePath();
+    vi.resetModules();
+    const { createLens, listLenses } = await import("../../../src/lib/db/lens-repository");
+
+    const input = { ...validLensInput([OPTION_L_ID]), retired: true };
+    const created = createLens(input);
+
+    expect(created.retired).toBe(true);
+
+    const lenses = listLenses();
+    const stored = lenses.find((l) => l.id === created.id);
+    expect(stored).toBeDefined();
+    expect(stored!.retired).toBe(true);
+  });
+
+  /**
+   * Verifies that updating a lens to set retired=true persists the change.
+   */
+  test("updateLens changes retired flag to true", async () => {
+    useIsolatedDatabasePath();
+    vi.resetModules();
+    const { createLens, updateLens, listLenses } = await import("../../../src/lib/db/lens-repository");
+
+    // Create lens with retired=false
+    const lens = createLens(validLensInput([OPTION_L_ID]));
+    expect(lens.retired).toBe(false);
+
+    // Update to retired=true (use different focal to avoid duplicate detection)
+    const updatedInput = {
+      ...validLensInput([OPTION_L_ID]),
+      retired: true,
+      focalMinMm: 16,
+      focalMaxMm: 35,
+      maxApertureAtMinFocal: 4,
+      maxApertureAtMaxFocal: 4,
+    };
+    updateLens(lens.id, updatedInput);
+
+    const stored = listLenses().find((l) => l.id === lens.id);
+    expect(stored).toBeDefined();
+    expect(stored!.retired).toBe(true);
   });
 });
 

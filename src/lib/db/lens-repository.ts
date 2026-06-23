@@ -79,6 +79,7 @@ function initializeSchema(database: Database.Database) {
       isFavorite INTEGER NOT NULL DEFAULT 0,
       isNextPurchase INTEGER NOT NULL DEFAULT 0,
       isOwned INTEGER NOT NULL DEFAULT 0,
+      retired INTEGER NOT NULL DEFAULT 0,
       createdAt TEXT NOT NULL,
       updatedAt TEXT NOT NULL
     );
@@ -87,12 +88,44 @@ function initializeSchema(database: Database.Database) {
       optionId TEXT NOT NULL REFERENCES lens_options(id) ON DELETE RESTRICT,
       PRIMARY KEY (lensId, optionId)
     );
+  `);
+  ensureLensColumns(database);
+  database.exec(`
     CREATE INDEX IF NOT EXISTS idx_lenses_brand ON lenses(brandId);
     CREATE INDEX IF NOT EXISTS idx_lenses_mount ON lenses(mountId);
     CREATE INDEX IF NOT EXISTS idx_lenses_status ON lenses(isFavorite, isNextPurchase, isOwned);
     CREATE INDEX IF NOT EXISTS idx_lens_options_brand ON lens_options(brandId);
   `);
   repairLensOptionLinksSchema(database);
+}
+
+function ensureLensColumns(database: Database.Database) {
+  const table = database.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'lenses'").get();
+  if (!table) return;
+
+  const columns = new Set((database.prepare("PRAGMA table_info(lenses)").all() as Array<{ name: string }>).map((column) => column.name));
+  const requiredColumns = [
+    { name: "filterDiameterMm", definition: "REAL" },
+    { name: "priceEur", definition: "REAL" },
+    { name: "minFocusDistanceM", definition: "REAL" },
+    { name: "angleAtMinFocalDeg", definition: "REAL" },
+    { name: "angleAtMaxFocalDeg", definition: "REAL" },
+    { name: "apertureBlades", definition: "INTEGER" },
+    { name: "opticalFormula", definition: "TEXT" },
+    { name: "weightG", definition: "REAL" },
+    { name: "isFavorite", definition: "INTEGER NOT NULL DEFAULT 0" },
+    { name: "isNextPurchase", definition: "INTEGER NOT NULL DEFAULT 0" },
+    { name: "isOwned", definition: "INTEGER NOT NULL DEFAULT 0" },
+    { name: "minApertureAtMinFocal", definition: "REAL" },
+    { name: "minApertureAtMaxFocal", definition: "REAL" },
+    { name: "retired", definition: "INTEGER NOT NULL DEFAULT 0" },
+  ];
+
+  for (const column of requiredColumns) {
+    if (!columns.has(column.name)) {
+      database.exec(`ALTER TABLE lenses ADD COLUMN ${column.name} ${column.definition}`);
+    }
+  }
 }
 
 function hasLegacyLensOptions(database: Database.Database) {
@@ -349,6 +382,33 @@ function assertNoDuplicateLens(database: Database.Database, input: { brandId: st
   if (duplicate) throw new DuplicateLensError(duplicate.label);
 }
 
+function getLensIdentity(database: Database.Database, id: string) {
+  return database.prepare(`SELECT brandId, mountId, focalMinMm, focalMaxMm, maxApertureAtMinFocal, maxApertureAtMaxFocal
+    FROM lenses WHERE id = ?`).get(id) as {
+    brandId: string;
+    mountId: string;
+    focalMinMm: number;
+    focalMaxMm: number;
+    maxApertureAtMinFocal: number;
+    maxApertureAtMaxFocal: number;
+  } | undefined;
+}
+
+function isSameLensIdentity(
+  current: ReturnType<typeof getLensIdentity>,
+  next: { brandId: string; focalMinMm: number; focalMaxMm: number; maxApertureAtMinFocal: number; maxApertureAtMaxFocal: number; mountId: string },
+) {
+  return Boolean(
+    current
+      && current.brandId === next.brandId
+      && current.mountId === next.mountId
+      && current.focalMinMm === next.focalMinMm
+      && current.focalMaxMm === next.focalMaxMm
+      && current.maxApertureAtMinFocal === next.maxApertureAtMinFocal
+      && current.maxApertureAtMaxFocal === next.maxApertureAtMaxFocal,
+  );
+}
+
 export function listLenses(): Lens[] {
   const database = getDatabase();
   const rows = database
@@ -373,12 +433,12 @@ export function createLens(input: LensInput) {
       id, brandId, mountId, focalMinMm, focalMaxMm, apscFocalMinEquivalentMm, apscFocalMaxEquivalentMm,
       maxApertureAtMinFocal, maxApertureAtMaxFocal, minApertureAtMinFocal, minApertureAtMaxFocal, label, filterDiameterMm, priceEur,
       minFocusDistanceM, angleAtMinFocalDeg, angleAtMaxFocalDeg, apertureBlades, opticalFormula, weightG,
-      isFavorite, isNextPurchase, isOwned, createdAt, updatedAt
+      isFavorite, isNextPurchase, isOwned, retired, createdAt, updatedAt
     ) VALUES (
       @id, @brandId, @mountId, @focalMinMm, @focalMaxMm, @apscFocalMinEquivalentMm, @apscFocalMaxEquivalentMm,
       @maxApertureAtMinFocal, @maxApertureAtMaxFocal, @minApertureAtMinFocal, @minApertureAtMaxFocal, @label, @filterDiameterMm, @priceEur,
       @minFocusDistanceM, @angleAtMinFocalDeg, @angleAtMaxFocalDeg, @apertureBlades, @opticalFormula, @weightG,
-      @isFavorite, @isNextPurchase, @isOwned, @createdAt, @updatedAt
+      @isFavorite, @isNextPurchase, @isOwned, @retired, @createdAt, @updatedAt
     )`).run(toDbParams(lens));
     replaceLensOptions(database, lens.id, input.optionIds);
   });
@@ -392,7 +452,10 @@ export function updateLens(id: string, input: LensInput) {
   const normalized = normalizeLensInput(input, refs);
   const updatedAt = new Date().toISOString();
   const transaction = database.transaction(() => {
-    assertNoDuplicateLens(database, normalized, id);
+    const currentIdentity = getLensIdentity(database, id);
+    if (!isSameLensIdentity(currentIdentity, normalized)) {
+      assertNoDuplicateLens(database, normalized, id);
+    }
     database.prepare(`UPDATE lenses SET
       brandId=@brandId, mountId=@mountId, focalMinMm=@focalMinMm, focalMaxMm=@focalMaxMm,
       apscFocalMinEquivalentMm=@apscFocalMinEquivalentMm, apscFocalMaxEquivalentMm=@apscFocalMaxEquivalentMm,
@@ -401,7 +464,7 @@ export function updateLens(id: string, input: LensInput) {
       label=@label, filterDiameterMm=@filterDiameterMm, priceEur=@priceEur,
       minFocusDistanceM=@minFocusDistanceM, angleAtMinFocalDeg=@angleAtMinFocalDeg, angleAtMaxFocalDeg=@angleAtMaxFocalDeg,
       apertureBlades=@apertureBlades, opticalFormula=@opticalFormula, weightG=@weightG,
-      isFavorite=@isFavorite, isNextPurchase=@isNextPurchase, isOwned=@isOwned, updatedAt=@updatedAt
+      isFavorite=@isFavorite, isNextPurchase=@isNextPurchase, isOwned=@isOwned, retired=@retired, updatedAt=@updatedAt
       WHERE id=@id`).run(toDbParams({ id, ...normalized, updatedAt }));
     replaceLensOptions(database, id, input.optionIds);
   });
@@ -497,7 +560,7 @@ function mapRow(database: Database.Database, row: Record<string, unknown>): Lens
   const options = database.prepare(`SELECT lens_options.id, lens_options.code, lens_options.description, lens_options.brandId
     FROM lens_option_links JOIN lens_options ON lens_options.id = lens_option_links.optionId
     WHERE lens_option_links.lensId = ? ORDER BY lens_options.code COLLATE NOCASE`).all(row.id as string) as LensOption[];
-  return { ...(row as Omit<Lens, "isFavorite" | "isNextPurchase" | "isOwned" | "options">), options, isFavorite: Boolean(row.isFavorite), isNextPurchase: Boolean(row.isNextPurchase), isOwned: Boolean(row.isOwned) } as Lens;
+  return { ...(row as Omit<Lens, "isFavorite" | "isNextPurchase" | "isOwned" | "retired" | "options">), options, isFavorite: Boolean(row.isFavorite), isNextPurchase: Boolean(row.isNextPurchase), isOwned: Boolean(row.isOwned), retired: Boolean(row.retired) } as Lens;
 }
 
 function resolveLensRefs(database: Database.Database, input: LensInput) {
@@ -559,6 +622,6 @@ function refreshLabels() {
 }
 
 function toDbParams<T extends object>(values: T) {
-  const record = values as T & { isFavorite?: boolean; isNextPurchase?: boolean; isOwned?: boolean };
-  return { ...record, isFavorite: record.isFavorite ? 1 : 0, isNextPurchase: record.isNextPurchase ? 1 : 0, isOwned: record.isOwned ? 1 : 0 };
+  const record = values as T & { isFavorite?: boolean; isNextPurchase?: boolean; isOwned?: boolean; retired?: boolean };
+  return { ...record, isFavorite: record.isFavorite ? 1 : 0, isNextPurchase: record.isNextPurchase ? 1 : 0, isOwned: record.isOwned ? 1 : 0, retired: record.retired ? 1 : 0 };
 }

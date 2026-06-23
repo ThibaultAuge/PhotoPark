@@ -75,6 +75,7 @@ const existingLens: Lens = {
   isFavorite: true,
   isNextPurchase: false,
   isOwned: true,
+  retired: false,
   createdAt: "2026-06-22T00:00:00.000Z",
   updatedAt: "2026-06-22T00:00:00.000Z"
 };
@@ -237,5 +238,32 @@ describe("LensForm", () => {
     // Sony-only options must NOT appear in the fieldset
     expect(markup).not.toMatch(/<strong>GM<\/strong>/);
     expect(markup).not.toMatch(/<strong>OSS<\/strong>/);
+  });
+
+  /**
+   * Verifies that the checkbox-row contains a "Retiré" checkbox
+   * input with the name "retired".
+   */
+  test("renders retired checkbox in checkbox-row", () => {
+    const markup = renderForm();
+
+    // The checkbox-row contains four labels: Favori, Prochain achat, Possédé, Retiré
+    expect(markup).toMatch(/<label><input(?=[^>]*name="retired")(?=[^>]*type="checkbox")[^>]*>\s*Retiré<\/label>/);
+    // All four checkbox labels are present
+    expect(markup).toContain("Favori");
+    expect(markup).toContain("Prochain achat");
+    expect(markup).toContain("Possédé");
+    expect(markup).toContain("Retiré");
+  });
+
+  /**
+   * Verifies that when a lens with retired:true is passed to LensForm,
+   * the retired checkbox has the defaultChecked attribute set.
+   */
+  test("retired checkbox is pre-checked for existing retired lens", () => {
+    const retiredLens: Lens = { ...existingLens, retired: true };
+    const markup = renderForm(retiredLens);
+
+    expect(markup).toMatch(/<input(?=[^>]*name="retired")(?=[^>]*type="checkbox")(?=[^>]*checked="")[^>]*>/);
   });
 });

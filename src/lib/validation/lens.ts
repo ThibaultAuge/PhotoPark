@@ -57,7 +57,8 @@ export const lensSchema = z
     weightG: optionalNumber,
     isFavorite: z.coerce.boolean().default(false),
     isNextPurchase: z.coerce.boolean().default(false),
-    isOwned: z.coerce.boolean().default(false)
+    isOwned: z.coerce.boolean().default(false),
+    retired: z.coerce.boolean().default(false)
   })
   .refine((value) => value.focalMaxMm >= value.focalMinMm, {
     path: ["focalMaxMm"],
@@ -94,6 +95,7 @@ export function parseLensFormData(formData: FormData) {
     weightG: formData.get("weightG"),
     isFavorite: formData.get("isFavorite") === "on",
     isNextPurchase: formData.get("isNextPurchase") === "on",
-    isOwned: formData.get("isOwned") === "on"
+    isOwned: formData.get("isOwned") === "on",
+    retired: formData.get("retired") === "on"
   });
 }

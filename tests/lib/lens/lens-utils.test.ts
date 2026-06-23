@@ -45,7 +45,8 @@ const baseLensInput: LensInput = {
   weightG: 835,
   isFavorite: true,
   isNextPurchase: false,
-  isOwned: true
+  isOwned: true,
+  retired: false
 };
 
 describe("lens-utils", () => {

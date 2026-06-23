@@ -251,6 +251,33 @@ describe("lens validation", () => {
   });
 
   /**
+   * Verifies that retired defaults to false when not provided
+   */
+  test("retired defaults to false when not provided", () => {
+    expect(lensSchema.parse(validLensValues())).toMatchObject({
+      retired: false,
+    });
+  });
+
+  /**
+   * Verifies that retired parses correctly when explicitly set to true
+   */
+  test("retired parses true when provided as boolean", () => {
+    expect(lensSchema.parse({ ...validLensValues(), retired: true })).toMatchObject({
+      retired: true,
+    });
+  });
+
+  /**
+   * Verifies that retired parses correctly when provided as string "true"
+   */
+  test("retired parses true when provided as coerced string", () => {
+    expect(lensSchema.parse({ ...validLensValues(), retired: "true" })).toMatchObject({
+      retired: true,
+    });
+  });
+
+  /**
    * Verifies that form data is parsed with checkbox booleans
    */
   test("parseLensFormData parses form values and checkbox states", () => {
@@ -261,6 +288,29 @@ describe("lens validation", () => {
       isFavorite: true,
       isNextPurchase: false,
       isOwned: true
+    });
+  });
+
+  /**
+   * Verifies that parseLensFormData parses retired checkbox correctly
+   * when the "retired" field is set to "on".
+   */
+  test("parseLensFormData parses retired as true when set to 'on'", () => {
+    const formData = validFormData();
+    formData.set("retired", "on");
+
+    expect(parseLensFormData(formData)).toMatchObject({
+      retired: true,
+    });
+  });
+
+  /**
+   * Verifies that parseLensFormData defaults retired to false when
+   * the checkbox is not present in the form data.
+   */
+  test("parseLensFormData defaults retired to false when absent", () => {
+    expect(parseLensFormData(validFormData())).toMatchObject({
+      retired: false,
     });
   });
 

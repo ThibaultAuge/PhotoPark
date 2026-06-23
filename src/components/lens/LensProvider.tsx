@@ -3,7 +3,13 @@
 import { createContext, useContext, useMemo, useState } from "react";
 import type { Lens, LensFilters, LensReferenceData } from "@/lib/lens/types";
 
-export const defaultFilters: LensFilters = { query: "", brand: "", mount: "", option: "", sensorType: "", status: "", focalMin: "", focalMax: "", maxAperture: "" };
+export const defaultFilters: LensFilters = {
+  query: "", brand: "", mount: "", option: "", kind: "", status: "",
+  focalMinLow: 0, focalMinHigh: 1000,
+  focalMaxLow: 0, focalMaxHigh: 1000,
+  apertureAtMinLow: 1, apertureAtMinHigh: 30,
+  apertureAtMaxLow: 1, apertureAtMaxHigh: 30,
+};
 
 type LensContextValue = {
   filters: LensFilters;
@@ -107,7 +113,7 @@ export function LensProvider({
   return <LensContext.Provider value={value}>{children}</LensContext.Provider>;
 }
 
-function filterLenses(lenses: Lens[], filters: LensFilters) {
+export function filterLenses(lenses: Lens[], filters: LensFilters) {
   const query = filters.query.trim().toLowerCase();
   return lenses.filter((lens) => {
     if (
@@ -121,13 +127,23 @@ function filterLenses(lenses: Lens[], filters: LensFilters) {
     if (filters.brand && lens.brandId !== filters.brand) return false;
     if (filters.mount && lens.mountId !== filters.mount) return false;
     if (filters.option && !lens.options.some((option) => option.id === filters.option)) return false;
-    if (filters.sensorType && lens.sensorType !== filters.sensorType) return false;
+    if (filters.kind === "prime" && lens.focalMinMm !== lens.focalMaxMm) return false;
+    if (filters.kind === "zoom" && lens.focalMinMm === lens.focalMaxMm) return false;
     if (filters.status === "favorite" && !lens.isFavorite) return false;
     if (filters.status === "next" && !lens.isNextPurchase) return false;
     if (filters.status === "owned" && !lens.isOwned) return false;
-    if (filters.focalMin && lens.focalMaxMm < Number(filters.focalMin)) return false;
-    if (filters.focalMax && lens.focalMinMm > Number(filters.focalMax)) return false;
-    if (filters.maxAperture && Math.min(lens.maxApertureAtMinFocal, lens.maxApertureAtMaxFocal) > Number(filters.maxAperture)) return false;
+    // Focale min : focalMinMm doit être dans [focalMinLow, focalMinHigh]
+    if (lens.focalMinMm < filters.focalMinLow) return false;
+    if (lens.focalMinMm > filters.focalMinHigh) return false;
+    // Focale max : focalMaxMm doit être dans [focalMaxLow, focalMaxHigh]
+    if (lens.focalMaxMm < filters.focalMaxLow) return false;
+    if (lens.focalMaxMm > filters.focalMaxHigh) return false;
+    // Ouverture à focale min : maxApertureAtMinFocal dans [apertureAtMinLow, apertureAtMinHigh]
+    if (lens.maxApertureAtMinFocal < filters.apertureAtMinLow) return false;
+    if (lens.maxApertureAtMinFocal > filters.apertureAtMinHigh) return false;
+    // Ouverture à focale max : maxApertureAtMaxFocal dans [apertureAtMaxLow, apertureAtMaxHigh]
+    if (lens.maxApertureAtMaxFocal < filters.apertureAtMaxLow) return false;
+    if (lens.maxApertureAtMaxFocal > filters.apertureAtMaxHigh) return false;
     return true;
   });
 }

@@ -149,7 +149,7 @@ export function LensForm({ title, lens, referenceData, onClose }: { title: strin
 
         </div>
         <fieldset className="options-fieldset"><legend>Options</legend>{brandOptions.length === 0 ? <p className="empty-state">Aucune option pour cette marque.</p> : brandOptions.map((option) => <label key={option.id}><input name="optionIds" type="checkbox" value={option.id} checked={selectedOptionIds.has(option.id)} onChange={(event) => toggleOption(option.id, event.target.checked)} /> <strong>{option.code}</strong> — {option.description}</label>)}</fieldset>
-        <div className="checkbox-row"><label><input name="isFavorite" type="checkbox" defaultChecked={lens?.isFavorite} /> Favori</label><label><input name="isNextPurchase" type="checkbox" defaultChecked={lens?.isNextPurchase} /> Prochain achat</label><label><input name="isOwned" type="checkbox" defaultChecked={lens?.isOwned} /> Possédé</label></div>
+        <div className="checkbox-row"><label><input name="isFavorite" type="checkbox" defaultChecked={lens?.isFavorite} /> Favori</label><label><input name="isNextPurchase" type="checkbox" defaultChecked={lens?.isNextPurchase} /> Prochain achat</label><label><input name="isOwned" type="checkbox" defaultChecked={lens?.isOwned} /> Possédé</label><label><input name="retired" type="checkbox" defaultChecked={lens?.retired} /> Retiré</label></div>
         <div className="form-actions">
           <button type="button" className="ghost-button" onClick={onClose}>Annuler</button>
           <button className="primary-button">Enregistrer</button>

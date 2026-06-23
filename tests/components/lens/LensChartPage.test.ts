@@ -37,6 +37,7 @@ const lens1: Lens = {
   isFavorite: true,
   isNextPurchase: false,
   isOwned: true,
+  retired: false,
   createdAt: "2026-06-22T00:00:00.000Z",
   updatedAt: "2026-06-22T00:00:00.000Z",
 };
@@ -74,6 +75,24 @@ const lens3: Lens = {
   maxApertureAtMaxFocal: 2.8,
   label: "Sigma E 70-200 f/2.8",
   isOwned: false,
+};
+
+const lens4: Lens = {
+  ...lens1,
+  id: "44444444-4444-4444-8444-444444444444",
+  brand: "Nikon",
+  mount: "F",
+  sensorType: "FULL_FRAME",
+  focalMinMm: 50,
+  focalMaxMm: 50,
+  apscFocalMinEquivalentMm: 75,
+  apscFocalMaxEquivalentMm: 75,
+  maxApertureAtMinFocal: 1.8,
+  maxApertureAtMaxFocal: 1.8,
+  label: "Nikon F 50 f/1.8",
+  isFavorite: false,
+  isOwned: true,
+  retired: true,
 };
 
 const referenceData: LensReferenceData = {
@@ -144,11 +163,16 @@ const mockContext = vi.hoisted(() => ({
     brand: "",
     mount: "",
     option: "",
-    sensorType: "",
+    kind: "",
     status: "",
-    focalMin: "",
-    focalMax: "",
-    maxAperture: "",
+    focalMinLow: 0,
+    focalMinHigh: 1000,
+    focalMaxLow: 0,
+    focalMaxHigh: 1000,
+    apertureAtMinLow: 1,
+    apertureAtMinHigh: 30,
+    apertureAtMaxLow: 1,
+    apertureAtMaxHigh: 30,
   },
   setFilters: vi.fn(),
   resetFilters: vi.fn(),
@@ -267,8 +291,8 @@ describe("LensChartPage", () => {
     reactHookMocks.useState = undefined;
     reactHookMocks.useCallback = undefined;
     // Reset context to defaults
-    mockContext.initialLenses = [lens1, lens2, lens3];
-    mockContext.filteredLenses = [lens1, lens2, lens3];
+    mockContext.initialLenses = [lens1, lens2, lens3, lens4];
+    mockContext.filteredLenses = [lens1, lens2, lens3, lens4];
     mockContext.selectedIds = [];
     mockContext.showCreate = false;
     mockContext.editingLens = null;
@@ -286,7 +310,7 @@ describe("LensChartPage", () => {
 
     const html = renderChartPageHtml();
 
-    expect(html).toContain("0 objectif(s) affiché(s) sur 3");
+    expect(html).toContain("0 objectif(s) affiché(s) sur 4");
     expect(html).toContain("Ajouter un objectif");
     expect(html).toContain('class="chart-page-main"');
     expect(html).toContain('class="chart-page-sidebar"');
@@ -308,13 +332,13 @@ describe("LensChartPage", () => {
     expect(html).toContain("Fujifilm X 35 f/1.4");
     expect(html).toContain("Sigma E 70-200 f/2.8");
 
-    // Each item has a checkbox (3 total)
+    // Each item has a checkbox (4 total)
     const checkboxes = html.match(/type="checkbox"/g);
-    expect(checkboxes).toHaveLength(3);
+    expect(checkboxes).toHaveLength(4);
 
-    // Each item has an empty star (3 total — none selected)
+    // Each item has an empty star (4 total — none selected)
     const hollowStars = html.match(/☆/g);
-    expect(hollowStars).toHaveLength(3);
+    expect(hollowStars).toHaveLength(4);
   });
 
   /**
@@ -338,17 +362,18 @@ describe("LensChartPage", () => {
         (props.className as string).includes("chart-lens-item"),
     );
 
-    expect(items).toHaveLength(3);
+    expect(items).toHaveLength(4);
     // First two items (lens1, lens2) are checked
     expect(items[0].props.className).toContain("checked");
     expect(items[1].props.className).toContain("checked");
-    // Third item (lens3) is NOT checked
+    // Third and fourth items (lens3, lens4) are NOT checked
     expect(items[2].props.className).not.toContain("checked");
+    expect(items[3].props.className).not.toContain("checked");
   });
 
   /**
    * Verifies that lens items whose IDs are in selectedIds receive the
-   * CSS class "selected" on their <li> element.
+   * CSS class "selected" on their &lt;li&gt; element.
    */
   test("applies .selected class to items in selectedIds", () => {
     reactHookMocks.useState = (initialValue: unknown) => [[], vi.fn()];
@@ -365,12 +390,14 @@ describe("LensChartPage", () => {
         (props.className as string).includes("chart-lens-item"),
     );
 
-    expect(items).toHaveLength(3);
+    expect(items).toHaveLength(4);
     // First item (lens1) is NOT selected
     expect(items[0].props.className).not.toContain("selected");
     // Second and third items (lens2, lens3) are selected
     expect(items[1].props.className).toContain("selected");
     expect(items[2].props.className).toContain("selected");
+    // Fourth item (lens4) is NOT selected
+    expect(items[3].props.className).not.toContain("selected");
   });
 
   /**
@@ -393,7 +420,7 @@ describe("LensChartPage", () => {
         (props.className as string).includes("chart-lens-item"),
     );
 
-    expect(items).toHaveLength(3);
+    expect(items).toHaveLength(4);
 
     // lens1: checked only
     expect(items[0].props.className).toContain("checked");
@@ -406,6 +433,10 @@ describe("LensChartPage", () => {
     // lens3: neither
     expect(items[2].props.className).not.toContain("checked");
     expect(items[2].props.className).not.toContain("selected");
+
+    // lens4: neither
+    expect(items[3].props.className).not.toContain("checked");
+    expect(items[3].props.className).not.toContain("selected");
   });
 
   /**
@@ -425,8 +456,8 @@ describe("LensChartPage", () => {
       (props, type) => type === "input" && props.type === "checkbox",
     );
 
-    // There should be 3 checkboxes, one per lens
-    expect(checkboxes).toHaveLength(3);
+    // There should be 4 checkboxes, one per lens
+    expect(checkboxes).toHaveLength(4);
 
     // Simulate clicking each checkbox
     for (const cb of checkboxes) {
@@ -435,7 +466,7 @@ describe("LensChartPage", () => {
     }
 
     // Each click calls setCheckedIds with an updater function
-    expect(mockSetCheckedIds).toHaveBeenCalledTimes(3);
+    expect(mockSetCheckedIds).toHaveBeenCalledTimes(4);
   });
 
   /**
@@ -457,7 +488,7 @@ describe("LensChartPage", () => {
         (props.className as string).includes("chart-lens-compare-btn"),
     );
 
-    expect(starButtons).toHaveLength(3);
+    expect(starButtons).toHaveLength(4);
 
     // Click each star button
     for (const btn of starButtons) {
@@ -465,7 +496,7 @@ describe("LensChartPage", () => {
       onClick();
     }
 
-    expect(mockContext.toggleSelected).toHaveBeenCalledTimes(3);
+    expect(mockContext.toggleSelected).toHaveBeenCalledTimes(4);
   });
 
   /**
@@ -488,14 +519,14 @@ describe("LensChartPage", () => {
         (props.className as string).includes("chart-lens-item-label"),
     );
 
-    expect(labels).toHaveLength(3);
+    expect(labels).toHaveLength(4);
 
     for (const label of labels) {
       const onClick = label.props.onClick as () => void;
       onClick();
     }
 
-    expect(mockSetCheckedIds).toHaveBeenCalledTimes(3);
+    expect(mockSetCheckedIds).toHaveBeenCalledTimes(4);
   });
 
   /**
@@ -526,7 +557,7 @@ describe("LensChartPage", () => {
 
     const html = renderChartPageHtml();
 
-    expect(html).toContain("2 objectif(s) affiché(s) sur 3");
+    expect(html).toContain("2 objectif(s) affiché(s) sur 4");
   });
 
   /**
@@ -670,7 +701,7 @@ describe("LensChartPage", () => {
         (props.className as string).includes("chart-lens-compare-btn"),
     );
 
-    expect(starButtons).toHaveLength(3);
+    expect(starButtons).toHaveLength(4);
 
     // First button (lens1, not selected) — hollow star, "Ajouter" title
     expect(starButtons[0].props.title).toBe("Ajouter à la comparaison");
@@ -678,6 +709,8 @@ describe("LensChartPage", () => {
     expect(starButtons[1].props.title).toBe("Retirer de la comparaison");
     // Third button (lens3, not selected) — hollow star, "Ajouter" title
     expect(starButtons[2].props.title).toBe("Ajouter à la comparaison");
+    // Fourth button (lens4, not selected) — hollow star, "Ajouter" title
+    expect(starButtons[3].props.title).toBe("Ajouter à la comparaison");
   });
 
   /**
@@ -704,5 +737,63 @@ describe("LensChartPage", () => {
 
     expect(mockContext.setShowCreate).toHaveBeenCalledTimes(1);
     expect(mockContext.setShowCreate).toHaveBeenCalledWith(true);
+  });
+
+  // -----------------------------------------------------------------------
+  // Auto-check initialisation for owned + non-retired lenses
+  // -----------------------------------------------------------------------
+
+  /**
+   * Verifies that the chart page auto-checks owned and non-retired lenses
+   * by default. lens1 is owned and non-retired → should be checked.
+   * lens2 and lens3 are not owned → should not be checked.
+   * lens4 is owned but retired → should not be checked.
+   */
+  test("auto-checks owned and non-retired lenses by default", () => {
+    // Simulate the lazy initializer result: only lens1 is owned + non-retired
+    reactHookMocks.useState = (initialValue: unknown) => [
+      [lens1.id],
+      vi.fn(),
+    ];
+    reactHookMocks.useCallback = (fn: () => unknown) => fn;
+
+    const tree = renderChartPageTree();
+
+    const items = findElements(
+      tree,
+      (props, type) =>
+        type === "li" &&
+        typeof props.className === "string" &&
+        (props.className as string).includes("chart-lens-item"),
+    );
+
+    expect(items).toHaveLength(4);
+    // lens1: owned + non-retired → checked
+    expect(items[0].props.className).toContain("checked");
+    // lens2: not owned → NOT checked
+    expect(items[1].props.className).not.toContain("checked");
+    // lens3: not owned → NOT checked
+    expect(items[2].props.className).not.toContain("checked");
+    // lens4: owned but retired → NOT checked
+    expect(items[3].props.className).not.toContain("checked");
+  });
+
+  /**
+   * Verifies that a retired owned lens is NOT auto-checked, while
+   * a non-retired owned lens is. This test explicitly confirms the
+   * retired exclusion logic in the checkedIds initializer.
+   */
+  test("does not auto-check retired owned lenses", () => {
+    // Let real useState run the initializer
+    reactHookMocks.useState = undefined;
+    reactHookMocks.useCallback = (fn: () => unknown) => fn;
+
+    // lens1 is owned+non-retired, lens4 is owned+retired
+    const html = renderChartPageHtml();
+
+    // Toolbar count: only lens1 is auto-checked → "1 objectif(s) affiché(s) sur 4"
+    expect(html).toContain("1 objectif(s) affiché(s) sur 4");
+    // The retired lens label should still appear in the sidebar
+    expect(html).toContain("Nikon F 50 f/1.8");
   });
 });

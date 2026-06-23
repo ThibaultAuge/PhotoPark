@@ -24,8 +24,11 @@ export function LensChartPage() {
     referenceData,
   } = useLensContext();
 
-  // Lenses visible on the chart (checked in sidebar) — no limit
-  const [checkedIds, setCheckedIds] = useState<string[]>([]);
+  // Lenses visible on the chart (checked in sidebar) — no limit.
+  // By default, check all owned and non-retired lenses.
+  const [checkedIds, setCheckedIds] = useState<string[]>(() =>
+    initialLenses.filter((l) => l.isOwned && !l.retired).map((l) => l.id),
+  );
 
   const toggleChecked = useCallback((id: string) => {
     setCheckedIds((ids) =>
@@ -52,23 +55,35 @@ export function LensChartPage() {
 
   return (
     <section className="chart-page-layout">
+      {/* Full-width toolbar */}
+      <div className="toolbar card chart-page-full">
+        <div>
+          <h2>Carte optique</h2>
+          <p>
+            {checkedLenses.length} objectif(s) affiché(s) sur{" "}
+            {initialLenses.length}
+          </p>
+        </div>
+        <button
+          className="primary-button"
+          onClick={() => setShowCreate(true)}
+        >
+          Ajouter un objectif
+        </button>
+      </div>
+
+      {/* Full-width filters */}
+      <div className="chart-page-full">
+        <LensFiltersBar
+          filters={filters}
+          setFilters={setFilters}
+          referenceData={referenceData}
+          onReset={resetFilters}
+        />
+      </div>
+
       {/* Left: 4/5 — chart showing checked lenses */}
       <div className="chart-page-main">
-        <div className="toolbar card">
-          <div>
-            <h2>Carte optique</h2>
-            <p>
-              {checkedLenses.length} objectif(s) affiché(s) sur{" "}
-              {initialLenses.length}
-            </p>
-          </div>
-          <button
-            className="primary-button"
-            onClick={() => setShowCreate(true)}
-          >
-            Ajouter un objectif
-          </button>
-        </div>
         <LensChart
           lenses={checkedLenses}
           selectedIds={selectedIds}
@@ -76,14 +91,8 @@ export function LensChartPage() {
         />
       </div>
 
-      {/* Right: 1/5 — filters + lens list with visibility + selection */}
+      {/* Right: 1/5 — lens list with visibility + selection */}
       <aside className="chart-page-sidebar">
-        <LensFiltersBar
-          filters={filters}
-          setFilters={setFilters}
-          referenceData={referenceData}
-          onReset={resetFilters}
-        />
         <div className="chart-lens-list card">
           <div className="chart-lens-list-header">
             <h3>Objectifs</h3>

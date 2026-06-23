@@ -28,6 +28,7 @@ export type Lens = {
   isFavorite: boolean;
   isNextPurchase: boolean;
   isOwned: boolean;
+  retired: boolean;
   createdAt: string;
   updatedAt: string;
 };
@@ -66,9 +67,14 @@ export type LensFilters = {
   mount: string;
   brand: string;
   option: string;
-  sensorType: "" | SensorType;
+  kind: "" | "prime" | "zoom";
   status: "" | "favorite" | "next" | "owned";
-  focalMin: string;
-  focalMax: string;
-  maxAperture: string;
+  focalMinLow: number;
+  focalMinHigh: number;
+  focalMaxLow: number;
+  focalMaxHigh: number;
+  apertureAtMinLow: number;
+  apertureAtMinHigh: number;
+  apertureAtMaxLow: number;
+  apertureAtMaxHigh: number;
 };

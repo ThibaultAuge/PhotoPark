@@ -68,6 +68,7 @@ small { color: var(--muted); }
 .tag-list { display: flex; gap: 6px; flex-wrap: wrap; }
 .tag { border-radius: 999px; padding: 4px 8px; font-size: .75rem; font-weight: 800; background: #e5e7eb; }
 .tag.owned { background: #dcfce7; color: #166534; }
+.tag.retired { background: #f3f4f6; color: #6b7280; }
 .tag.favorite { background: #ffedd5; color: #9a3412; }
 .tag.next { background: #dbeafe; color: #1d4ed8; }
 
@@ -166,12 +167,15 @@ small { color: var(--muted); }
 .login-card { width: min(460px, 100%); padding: 30px; display: grid; gap: 16px; }
 .form-error { color: var(--danger) !important; font-weight: 800; }
 
-/* Chart page: 4/5 chart + 1/5 sidebar */
+/* Chart page: full-width toolbar/filters + 4/5 chart + 1/5 sidebar */
 .chart-page-layout {
   display: flex;
   flex-wrap: wrap;
   gap: 18px;
   align-items: flex-start;
+}
+.chart-page-full {
+  width: 100%;
 }
 .chart-page-main {
   flex: 4;
@@ -291,6 +295,147 @@ small { color: var(--muted); }
   flex: 1;
 }
 
+/* ============ Dual Range Slider ============ */
+
+.filter-sliders {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.dual-range-slider {
+  display: grid;
+  gap: 4px;
+}
+
+.dual-range-slider-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.dual-range-slider-label {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #374151;
+}
+
+.dual-range-slider-values {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.dual-range-slider-track {
+  position: relative;
+  height: 28px;
+  margin: 0 8px;
+  min-width: 0;
+}
+
+/* Fond du rail */
+.dual-range-slider-track-bg {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 4px;
+  background: #e5e7eb;
+  border-radius: 2px;
+  transform: translateY(-50%);
+  z-index: 0;
+  pointer-events: none;
+}
+
+/* Highlight entre les deux poignées */
+.dual-range-slider-highlight {
+  position: absolute;
+  top: 50%;
+  height: 4px;
+  background: var(--primary);
+  border-radius: 2px;
+  transform: translateY(-50%);
+  z-index: 1;
+  pointer-events: none;
+}
+
+/* Les deux range inputs superposés */
+.dual-range-slider-input {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  border: none;
+  outline: none;
+  -webkit-appearance: none;
+  appearance: none;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.dual-range-slider-input-high {
+  z-index: 3;
+}
+
+/* Thumbs partagés (webkit) */
+.dual-range-slider-input::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 20px;
+  width: 20px;
+  border-radius: 50%;
+  background: white;
+  border: 2px solid var(--primary);
+  cursor: pointer;
+  pointer-events: auto;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.15);
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+/* Thumbs partagés (firefox) */
+.dual-range-slider-input::-moz-range-thumb {
+  height: 20px;
+  width: 20px;
+  border-radius: 50%;
+  background: white;
+  border: 2px solid var(--primary);
+  cursor: pointer;
+  pointer-events: auto;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.15);
+}
+
+/* Focus */
+.dual-range-slider-input:focus::-webkit-slider-thumb {
+  border-color: #1d4ed8;
+  box-shadow: 0 0 0 3px #bfdbfe;
+}
+
+.dual-range-slider-input:focus::-moz-range-thumb {
+  border-color: #1d4ed8;
+  box-shadow: 0 0 0 3px #bfdbfe;
+}
+
+/* Cacher le rail natif */
+.dual-range-slider-input::-webkit-slider-runnable-track {
+  height: 0;
+  background: transparent;
+  border: none;
+}
+
+.dual-range-slider-input::-moz-range-track {
+  height: 0;
+  background: transparent;
+  border: none;
+}
+
 @media (max-width: 820px) {
   .app-shell { width: min(100% - 20px, 720px); padding-top: 72px; }
   .app-nav { padding: 0 12px; gap: 8px; }
@@ -299,6 +444,7 @@ small { color: var(--muted); }
   .desktop-only { display: none; }
   .mobile-cards { display: grid; }
   .filters { grid-template-columns: 1fr 1fr; }
+  .filter-sliders { grid-template-columns: 1fr; }
   .toolbar { align-items: stretch; flex-direction: column; }
   .compare-popup { border-radius: 22px; align-items: flex-start; flex-direction: column; width: calc(100% - 24px); }
   .compare-popup-labels { width: 100%; }

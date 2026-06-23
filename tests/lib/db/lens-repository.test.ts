@@ -29,15 +29,15 @@ function validLensInput(optionIds: string[] = [OPTION_L_ID]): LensInput {
     focalMaxMm: 70,
     maxApertureAtMinFocal: 2.8,
     maxApertureAtMaxFocal: 4,
-    minAperture: 22,
+    minApertureAtMinFocal: null,
+    minApertureAtMaxFocal: null,
     filterDiameterMm: 82,
     priceEur: 1200,
     minFocusDistanceM: 0.38,
     angleAtMinFocalDeg: 84,
     angleAtMaxFocalDeg: 34,
     apertureBlades: 9,
-    groupsCount: 14,
-    elementsCount: 18,
+    opticalFormula: null,
     weightG: 695,
     isFavorite: false,
     isNextPurchase: false,
@@ -63,7 +63,8 @@ function createDatabaseWithLegacyOptionLinkForeignKey(path: string) {
       apscFocalMaxEquivalentMm REAL NOT NULL,
       maxApertureAtMinFocal REAL NOT NULL,
       maxApertureAtMaxFocal REAL NOT NULL,
-      minAperture REAL,
+      minApertureAtMinFocal REAL,
+      minApertureAtMaxFocal REAL,
       label TEXT NOT NULL,
       filterDiameterMm REAL,
       priceEur REAL,
@@ -71,8 +72,7 @@ function createDatabaseWithLegacyOptionLinkForeignKey(path: string) {
       angleAtMinFocalDeg REAL,
       angleAtMaxFocalDeg REAL,
       apertureBlades INTEGER,
-      groupsCount INTEGER,
-      elementsCount INTEGER,
+      opticalFormula TEXT,
       weightG REAL,
       isFavorite INTEGER NOT NULL DEFAULT 0,
       isNextPurchase INTEGER NOT NULL DEFAULT 0,
@@ -91,12 +91,12 @@ function createDatabaseWithLegacyOptionLinkForeignKey(path: string) {
     INSERT INTO lens_options (id, code, description, createdAt, updatedAt) VALUES ('${OPTION_IS_ID}', 'IS', 'Stabilisation optique', '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z');
     INSERT INTO lenses (
       id, brandId, mountId, focalMinMm, focalMaxMm, apscFocalMinEquivalentMm, apscFocalMaxEquivalentMm,
-      maxApertureAtMinFocal, maxApertureAtMaxFocal, minAperture, label, filterDiameterMm, priceEur,
-      minFocusDistanceM, angleAtMinFocalDeg, angleAtMaxFocalDeg, apertureBlades, groupsCount, elementsCount,
+      maxApertureAtMinFocal, maxApertureAtMaxFocal, minApertureAtMinFocal, minApertureAtMaxFocal, label, filterDiameterMm, priceEur,
+      minFocusDistanceM, angleAtMinFocalDeg, angleAtMaxFocalDeg, apertureBlades, opticalFormula,
       weightG, isFavorite, isNextPurchase, isOwned, createdAt, updatedAt
     ) VALUES (
-      '${LENS_ID}', '${BRAND_ID}', '${MOUNT_ID}', 24, 70, 36, 105, 2.8, 4, 22,
-      'Canon RF 24-70 f/2.8-4 L', 82, 1200, 0.38, 84, 34, 9, 14, 18,
+      '${LENS_ID}', '${BRAND_ID}', '${MOUNT_ID}', 24, 70, 36, 105, 2.8, 4, NULL, NULL,
+      'Canon RF 24-70 f/2.8-4 L', 82, 1200, 0.38, 84, 34, 9, NULL,
       695, 0, 0, 1, '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z'
     );
     INSERT INTO lens_option_links (lensId, optionId) VALUES ('${LENS_ID}', '${OPTION_L_ID}');
@@ -145,9 +145,314 @@ describe("lens repository", () => {
     const { createLens, listLenses, updateLens } = await import("../../../src/lib/db/lens-repository");
     const createdLens = createLens(validLensInput([OPTION_L_ID]));
 
-    expect(() => updateLens("missing-lens", validLensInput([OPTION_IS_ID]))).toThrow("Objectif introuvable.");
+    // Use different focal/ aperture values to avoid duplicate detection before missing-lens check
+    const nonDuplicateInput = { ...validLensInput([OPTION_IS_ID]), focalMinMm: 16, focalMaxMm: 35, maxApertureAtMinFocal: 4, maxApertureAtMaxFocal: 4 };
+    expect(() => updateLens("missing-lens", nonDuplicateInput)).toThrow("Objectif introuvable.");
 
     const [storedLens] = listLenses().filter((lens) => lens.id === createdLens.id);
     expect(storedLens.options.map((option) => option.code)).toEqual(["L"]);
+  });
+
+  /**
+   * Verifies that creating a lens with the same brand, mount, focal range and apertures throws DuplicateLensError
+   */
+  test("createLens rejects duplicate lens", async () => {
+    useIsolatedDatabasePath();
+    vi.resetModules();
+    const { createLens, DuplicateLensError } = await import("../../../src/lib/db/lens-repository");
+
+    createLens(validLensInput([OPTION_L_ID])); // first creation succeeds
+
+    expect(() => createLens(validLensInput([OPTION_IS_ID]))).toThrow(DuplicateLensError);
+  });
+
+  /**
+   * Verifies that updating a lens to duplicate another lens throws DuplicateLensError
+   */
+  test("updateLens rejects duplicate lens", async () => {
+    useIsolatedDatabasePath();
+    vi.resetModules();
+    const { createLens, updateLens, DuplicateLensError } = await import("../../../src/lib/db/lens-repository");
+
+    const lensA = createLens(validLensInput([OPTION_L_ID])); // focalMinMm=24, focalMaxMm=70, maxApertureAtMinFocal=2.8, maxApertureAtMaxFocal=4
+
+    const differentInput = validLensInput([OPTION_L_ID]);
+    differentInput.focalMinMm = 16; // Different focal to create a non-duplicate
+    const lensB = createLens(differentInput);
+
+    // Try to update lensB to have the same specs as lensA
+    expect(() => updateLens(lensB.id, validLensInput([OPTION_IS_ID]))).toThrow(DuplicateLensError);
+  });
+
+  /**
+   * Verifies that updating a lens with its own values does NOT throw (self-comparison excluded)
+   */
+  test("updateLens allows saving same lens without duplicate error", async () => {
+    useIsolatedDatabasePath();
+    vi.resetModules();
+    const { createLens, updateLens } = await import("../../../src/lib/db/lens-repository");
+
+    const lens = createLens(validLensInput([OPTION_L_ID]));
+
+    // Updating with the same values should succeed (excludes current ID)
+    expect(() => updateLens(lens.id, validLensInput([OPTION_L_ID]))).not.toThrow();
+  });
+});
+
+describe("option groups", () => {
+  afterEach(() => {
+    delete process.env.DATABASE_PATH;
+    vi.resetModules();
+  });
+
+  // -----------------------------------------------------------------------
+  // createOption with brandId
+  // -----------------------------------------------------------------------
+
+  /**
+   * Verifies that createOption stores the brandId on the new option
+   */
+  test("createOption stores brandId", async () => {
+    useIsolatedDatabasePath();
+    vi.resetModules();
+    const { createOption, listReferenceData } = await import("../../../src/lib/db/lens-repository");
+
+    createOption("VR", "Vibration Reduction", BRAND_ID);
+
+    const options = listReferenceData().options;
+    const vr = options.find((o) => o.code === "VR");
+    expect(vr).toBeDefined();
+    expect(vr!.brandId).toBe(BRAND_ID);
+  });
+
+  /**
+   * Verifies that createOption inserts into the new schema (UNIQUE(code, brandId))
+   */
+  test("createOption enforces UNIQUE(code, brandId)", async () => {
+    useIsolatedDatabasePath();
+    vi.resetModules();
+    const { createOption } = await import("../../../src/lib/db/lens-repository");
+
+    createOption("VR", "Vibration Reduction", BRAND_ID);
+    // Same code + same brand -> should throw
+    expect(() => createOption("VR", "Vibration Reduction v2", BRAND_ID)).toThrow();
+  });
+
+  /**
+   * Verifies that createOption allows same code for different brandId
+   */
+  test("createOption allows same code for different brands", async () => {
+    useIsolatedDatabasePath();
+    vi.resetModules();
+    const { createOption, createBrand, listReferenceData } = await import("../../../src/lib/db/lens-repository");
+
+    // Create a second brand and look up its ID
+    createBrand("Nikon");
+    const nikonBrandId = listReferenceData().brands.find((b) => b.name === "Nikon")!.id;
+
+    createOption("VR", "Vibration Reduction", BRAND_ID);
+    // Same code, different brand should succeed
+    expect(() => createOption("VR", "Vibration Reduction NIKKOR", nikonBrandId)).not.toThrow();
+  });
+
+  // -----------------------------------------------------------------------
+  // listOptionsByBrand
+  // -----------------------------------------------------------------------
+
+  /**
+   * Verifies that listOptionsByBrand returns only options for the given brand
+   */
+  test("listOptionsByBrand filters by brandId", async () => {
+    useIsolatedDatabasePath();
+    vi.resetModules();
+    const { createBrand, createOption, listOptionsByBrand, listReferenceData } = await import("../../../src/lib/db/lens-repository");
+
+    createBrand("Nikon");
+    const nikonBrandId = listReferenceData().brands.find((b) => b.name === "Nikon")!.id;
+
+    createOption("VR", "Vibration Reduction", nikonBrandId);
+    createOption("ED", "Extra-low Dispersion", nikonBrandId);
+
+    const canonOptions = listOptionsByBrand(BRAND_ID);
+    expect(canonOptions.every((o) => o.brandId === BRAND_ID)).toBe(true);
+    // Canon should NOT include Nikon options
+    expect(canonOptions.find((o) => o.code === "VR")).toBeUndefined();
+
+    const nikonOptions = listOptionsByBrand(nikonBrandId);
+    expect(nikonOptions).toHaveLength(2);
+    expect(nikonOptions.map((o) => o.code)).toEqual(["ED", "VR"]);
+  });
+
+  /**
+   * Verifies that listOptionsByBrand returns empty array for non-existent brand
+   */
+  test("listOptionsByBrand returns empty for unknown brand", async () => {
+    useIsolatedDatabasePath();
+    vi.resetModules();
+    const { listOptionsByBrand } = await import("../../../src/lib/db/lens-repository");
+
+    const result = listOptionsByBrand("00000000-0000-4000-8000-000000000000");
+    expect(result).toEqual([]);
+  });
+
+  // -----------------------------------------------------------------------
+  // createOptionGroup / listOptionGroups
+  // -----------------------------------------------------------------------
+
+  /**
+   * Verifies that createOptionGroup creates a new option group and listOptionGroups returns it
+   */
+  test("createOptionGroup and listOptionGroups round-trip", async () => {
+    useIsolatedDatabasePath();
+    vi.resetModules();
+    const { createOptionGroup, listOptionGroups } = await import("../../../src/lib/db/lens-repository");
+
+    createOptionGroup("my-group", "Mon Groupe", "flag");
+
+    const groups = listOptionGroups();
+    const created = groups.find((g) => g.slug === "my-group");
+    expect(created).toBeDefined();
+    expect(created!.name).toBe("Mon Groupe");
+    expect(created!.type).toBe("flag");
+  });
+
+  /**
+   * Verifies that createOptionGroup with value type is persisted correctly
+   */
+  test("createOptionGroup stores value type", async () => {
+    useIsolatedDatabasePath();
+    vi.resetModules();
+    const { createOptionGroup, listOptionGroups } = await import("../../../src/lib/db/lens-repository");
+
+    createOptionGroup("motor-group", "Motorisation", "value");
+
+    const groups = listOptionGroups();
+    const motor = groups.find((g) => g.slug === "motor-group");
+    expect(motor).toBeDefined();
+    expect(motor!.type).toBe("value");
+  });
+
+  /**
+   * Verifies that seed data option groups are present after initialization
+   */
+  test("seed data includes option groups", async () => {
+    useIsolatedDatabasePath();
+    vi.resetModules();
+    const { listOptionGroups } = await import("../../../src/lib/db/lens-repository");
+
+    const groups = listOptionGroups();
+    expect(groups.length).toBeGreaterThanOrEqual(3);
+    expect(groups.find((g) => g.slug === "stabilization")).toBeDefined();
+    expect(groups.find((g) => g.slug === "motor")).toBeDefined();
+    expect(groups.find((g) => g.slug === "series")).toBeDefined();
+  });
+
+  // -----------------------------------------------------------------------
+  // updateOptionGroup
+  // -----------------------------------------------------------------------
+
+  /**
+   * Verifies that updateOptionGroup changes slug and name
+   */
+  test("updateOptionGroup updates fields", async () => {
+    useIsolatedDatabasePath();
+    vi.resetModules();
+    const { createOptionGroup, listOptionGroups, updateOptionGroup } = await import("../../../src/lib/db/lens-repository");
+
+    createOptionGroup("old-slug", "Old Name", "flag");
+    const created = listOptionGroups().find((g) => g.slug === "old-slug")!;
+
+    updateOptionGroup(created.id, "new-slug", "New Name", "value");
+
+    const groups = listOptionGroups();
+    expect(groups.find((g) => g.id === created.id)!).toMatchObject({
+      slug: "new-slug",
+      name: "New Name",
+      type: "value"
+    });
+  });
+
+  // -----------------------------------------------------------------------
+  // deleteOptionGroup
+  // -----------------------------------------------------------------------
+
+  /**
+   * Verifies that deleteOptionGroup removes the group
+   */
+  test("deleteOptionGroup removes group", async () => {
+    useIsolatedDatabasePath();
+    vi.resetModules();
+    const { createOptionGroup, listOptionGroups, deleteOptionGroup } = await import("../../../src/lib/db/lens-repository");
+
+    createOptionGroup("delete-me", "Delete Me", "flag");
+    expect(listOptionGroups().length).toBeGreaterThanOrEqual(1);
+
+    const created = listOptionGroups().find((g) => g.slug === "delete-me")!;
+    deleteOptionGroup(created.id);
+
+    const after = listOptionGroups();
+    expect(after.find((g) => g.id === created.id)).toBeUndefined();
+  });
+
+  // -----------------------------------------------------------------------
+  // replaceGroupMembers / getOptionGroupMembers
+  // -----------------------------------------------------------------------
+
+  /**
+   * Verifies that replaceGroupMembers sets members and getOptionGroupMembers returns them
+   */
+  test("replaceGroupMembers sets members for a group", async () => {
+    useIsolatedDatabasePath();
+    vi.resetModules();
+    const { createOptionGroup, replaceGroupMembers, getOptionGroupMembers, listReferenceData } = await import("../../../src/lib/db/lens-repository");
+
+    createOptionGroup("test-group", "Test", "flag");
+    const groups = listReferenceData().optionGroups;
+    const group = groups.find((g) => g.slug === "test-group")!;
+
+    // Replace with IS and L options from seed
+    replaceGroupMembers(group.id, [OPTION_IS_ID, OPTION_L_ID]);
+
+    const members = getOptionGroupMembers(group.id);
+    expect(members).toHaveLength(2);
+    expect(members.map((m) => m.id)).toEqual(expect.arrayContaining([OPTION_IS_ID, OPTION_L_ID]));
+  });
+
+  /**
+   * Verifies that replaceGroupMembers replaces (not appends) members
+   */
+  test("replaceGroupMembers replaces existing members", async () => {
+    useIsolatedDatabasePath();
+    vi.resetModules();
+    const { createOptionGroup, replaceGroupMembers, getOptionGroupMembers, listReferenceData } = await import("../../../src/lib/db/lens-repository");
+
+    createOptionGroup("test-group", "Test", "flag");
+    const groups = listReferenceData().optionGroups;
+    const group = groups.find((g) => g.slug === "test-group")!;
+
+    replaceGroupMembers(group.id, [OPTION_IS_ID]);
+    expect(getOptionGroupMembers(group.id)).toHaveLength(1);
+
+    // Replace with different option — should overwrite
+    replaceGroupMembers(group.id, [OPTION_L_ID]);
+    const members = getOptionGroupMembers(group.id);
+    expect(members).toHaveLength(1);
+    expect(members[0].id).toBe(OPTION_L_ID);
+  });
+
+  /**
+   * Verifies that getOptionGroupMembers returns empty array for a group with no members
+   */
+  test("getOptionGroupMembers returns empty for unassigned group", async () => {
+    useIsolatedDatabasePath();
+    vi.resetModules();
+    const { createOptionGroup, getOptionGroupMembers, listReferenceData } = await import("../../../src/lib/db/lens-repository");
+
+    createOptionGroup("empty-group", "Empty", "flag");
+    const groups = listReferenceData().optionGroups;
+    const group = groups.find((g) => g.slug === "empty-group")!;
+
+    const members = getOptionGroupMembers(group.id);
+    expect(members).toEqual([]);
   });
 });

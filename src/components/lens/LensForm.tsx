@@ -16,10 +16,19 @@ export function LensForm({ title, lens, referenceData, onClose }: { title: strin
   const [maxApertureAtMaxFocal, setMaxApertureAtMaxFocal] = useState(formatFieldValue(lens?.maxApertureAtMaxFocal));
   const [optionIds, setOptionIds] = useState(lens?.options.map((option) => option.id) ?? []);
   const [labelDraft, setLabelDraft] = useState(lens?.label ?? buildLabel(referenceData, { brandId, mountId, focalMinMm, focalMaxMm, maxApertureAtMinFocal, maxApertureAtMaxFocal, optionIds }));
+  const [error, setError] = useState<string | null>(null);
+  const brandOptions = useMemo(() => referenceData.options.filter((o) => o.brandId === brandId), [referenceData.options, brandId]);
   const selectedOptionIds = useMemo(() => new Set(optionIds), [optionIds]);
 
   function updateFields(nextFields: Partial<FormLabelFields>) {
-    const nextState = { brandId, mountId, focalMinMm, focalMaxMm, maxApertureAtMinFocal, maxApertureAtMaxFocal, optionIds, ...nextFields };
+    let nextOptionIds = optionIds;
+    if (Array.isArray(nextFields.optionIds)) {
+      nextOptionIds = nextFields.optionIds;
+    } else if (typeof nextFields.brandId === "string") {
+      // Filter out options that don't belong to the new brand
+      nextOptionIds = optionIds.filter((id) => referenceData.options.some((o) => o.id === id && o.brandId === nextFields.brandId!));
+    }
+    const nextState = { brandId, mountId, focalMinMm, focalMaxMm, maxApertureAtMinFocal, maxApertureAtMaxFocal, optionIds: nextOptionIds, ...nextFields };
     if (typeof nextFields.brandId === "string") setBrandId(nextFields.brandId);
     if (typeof nextFields.mountId === "string") setMountId(nextFields.mountId);
     if (typeof nextFields.focalMinMm === "string") setFocalMinMm(nextFields.focalMinMm);
@@ -27,6 +36,7 @@ export function LensForm({ title, lens, referenceData, onClose }: { title: strin
     if (typeof nextFields.maxApertureAtMinFocal === "string") setMaxApertureAtMinFocal(nextFields.maxApertureAtMinFocal);
     if (typeof nextFields.maxApertureAtMaxFocal === "string") setMaxApertureAtMaxFocal(nextFields.maxApertureAtMaxFocal);
     if (Array.isArray(nextFields.optionIds)) setOptionIds(nextFields.optionIds);
+    setOptionIds(nextOptionIds);
     setLabelDraft(buildLabel(referenceData, nextState));
   }
 
@@ -48,36 +58,102 @@ export function LensForm({ title, lens, referenceData, onClose }: { title: strin
   }
 
   async function submitAndClose(formData: FormData) {
-    await action(formData);
-    onClose();
+    setError(null);
+    try {
+      await action(formData);
+      onClose();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Une erreur est survenue.");
+    }
   }
 
   return (
     <div className="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="lens-form-title">
       <form action={submitAndClose} className="modal-card">
         <div className="modal-header"><h2 id="lens-form-title">{title}</h2><button type="button" className="ghost-button" onClick={onClose}>Fermer</button></div>
-        <div className="form-grid">
-          <label>Libellé<input type="text" value={labelDraft} onChange={(event) => applyLabel(event.target.value)} placeholder="Canon EF 18-55 F/3,5-5,6 IS" maxLength={160} /></label>
-          <label>Marque<select name="brandId" value={brandId} onChange={(event) => updateFields({ brandId: event.target.value })} required>{referenceData.brands.map((brand) => <option key={brand.id} value={brand.id}>{brand.name}</option>)}</select></label>
-          <label>Monture<select name="mountId" value={mountId} onChange={(event) => updateFields({ mountId: event.target.value })} required>{referenceData.mounts.map((mount) => <option key={mount.id} value={mount.id}>{mount.name} — {mount.sensorType === "FULL_FRAME" ? "Plein format" : "APS-C"}</option>)}</select></label>
-          <ControlledField name="focalMinMm" label="Focale min" type="text" inputMode="decimal" value={focalMinMm} onChange={(value) => updateFields({ focalMinMm: value })} required />
-          <ControlledField name="focalMaxMm" label="Focale max" type="text" inputMode="decimal" value={focalMaxMm} onChange={(value) => updateFields({ focalMaxMm: value })} required />
-          <ControlledField name="maxApertureAtMinFocal" label="Ouverture max à min focale" type="text" inputMode="decimal" value={maxApertureAtMinFocal} onChange={(value) => updateFields({ maxApertureAtMinFocal: value })} required />
-          <ControlledField name="maxApertureAtMaxFocal" label="Ouverture max à max focale" type="text" inputMode="decimal" value={maxApertureAtMaxFocal} onChange={(value) => updateFields({ maxApertureAtMaxFocal: value })} />
-          <Field name="minAperture" label="Ouverture min" type="text" inputMode="decimal" defaultValue={lens?.minAperture} />
-          <Field name="filterDiameterMm" label="Diamètre filtre (mm)" type="text" inputMode="decimal" defaultValue={lens?.filterDiameterMm} />
-          <Field name="priceEur" label="Prix (€)" type="text" inputMode="decimal" defaultValue={lens?.priceEur} />
-          <Field name="minFocusDistanceM" label="Distance mini MAP (m)" type="text" inputMode="decimal" defaultValue={lens?.minFocusDistanceM} />
-          <Field name="angleAtMinFocalDeg" label="Angle min focale (°)" type="text" inputMode="decimal" defaultValue={lens?.angleAtMinFocalDeg} />
-          <Field name="angleAtMaxFocalDeg" label="Angle max focale (°)" type="text" inputMode="decimal" defaultValue={lens?.angleAtMaxFocalDeg} />
-          <Field name="apertureBlades" label="Diaphragme (lames)" type="text" inputMode="numeric" defaultValue={lens?.apertureBlades} />
-          <Field name="groupsCount" label="Groupes" type="text" inputMode="numeric" defaultValue={lens?.groupsCount} />
-          <Field name="elementsCount" label="Lentilles" type="text" inputMode="numeric" defaultValue={lens?.elementsCount} />
-          <Field name="weightG" label="Poids (g)" type="text" inputMode="decimal" defaultValue={lens?.weightG} />
+        {error ? <div className="form-error" role="alert">{error}</div> : null}
+        <div className="form-sections">
+
+          <section className="form-section-full">
+            <div className="form-section-header">
+              <h3 className="form-section-title">Identité</h3>
+            </div>
+            <div className="form-section-body">
+              <label>Coller un libellé pour préremplissage<input type="text" value={labelDraft} onChange={(event) => applyLabel(event.target.value)} placeholder="Canon EF 18-55 F/3,5-5,6 IS" maxLength={160} /></label>
+              <div className="form-row">
+                <label>Marque<select name="brandId" value={brandId} onChange={(event) => updateFields({ brandId: event.target.value })} required>{referenceData.brands.map((brand) => <option key={brand.id} value={brand.id}>{brand.name}</option>)}</select></label>
+                <label>Monture<select name="mountId" value={mountId} onChange={(event) => updateFields({ mountId: event.target.value })} required>{referenceData.mounts.map((mount) => <option key={mount.id} value={mount.id}>{mount.name} — {mount.sensorType === "FULL_FRAME" ? "Plein format" : "APS-C"}</option>)}</select></label>
+              </div>
+            </div>
+          </section>
+
+          <section>
+            <div className="form-section-header">
+              <h3 className="form-section-title">Focale & angle</h3>
+            </div>
+            <div className="form-section-body">
+              <div className="form-row">
+                <ControlledField name="focalMinMm" label="Focale min" type="text" inputMode="decimal" value={focalMinMm} onChange={(value) => updateFields({ focalMinMm: value })} required />
+                <ControlledField name="focalMaxMm" label="Focale max" type="text" inputMode="decimal" value={focalMaxMm} onChange={(value) => updateFields({ focalMaxMm: value })} required />
+              </div>
+              <div className="form-row">
+                <Field name="angleAtMinFocalDeg" label="Angle (min foc.)" type="text" inputMode="decimal" defaultValue={lens?.angleAtMinFocalDeg} />
+                <Field name="angleAtMaxFocalDeg" label="Angle (max foc.)" type="text" inputMode="decimal" defaultValue={lens?.angleAtMaxFocalDeg} />
+              </div>
+            </div>
+          </section>
+
+          <section>
+            <div className="form-section-header">
+              <h3 className="form-section-title">Ouverture</h3>
+            </div>
+            <div className="form-section-body">
+              <div className="form-row">
+                <ControlledField name="maxApertureAtMinFocal" label="Max (min)" type="text" inputMode="decimal" value={maxApertureAtMinFocal} onChange={(value) => updateFields({ maxApertureAtMinFocal: value })} required />
+                <ControlledField name="maxApertureAtMaxFocal" label="Max (max)" type="text" inputMode="decimal" value={maxApertureAtMaxFocal} onChange={(value) => updateFields({ maxApertureAtMaxFocal: value })} />
+              </div>
+              <div className="form-row">
+                <Field name="minApertureAtMinFocal" label="Min (min foc.)" type="text" inputMode="decimal" defaultValue={lens?.minApertureAtMinFocal} />
+                <Field name="minApertureAtMaxFocal" label="Min (max foc.)" type="text" inputMode="decimal" defaultValue={lens?.minApertureAtMaxFocal} />
+              </div>
+            </div>
+          </section>
+
+          <section>
+            <div className="form-section-header">
+              <h3 className="form-section-title">Construction</h3>
+            </div>
+            <div className="form-section-body">
+              <div className="form-row">
+                <Field name="opticalFormula" label="Formule optique" type="text" inputMode="text" defaultValue={lens?.opticalFormula} placeholder="ex. 15/21" />
+                <Field name="apertureBlades" label="Lames" type="text" inputMode="numeric" defaultValue={lens?.apertureBlades} />
+              </div>
+              <div className="form-row">
+                <Field name="minFocusDistanceM" label="Distance MAP mini (m)" type="text" inputMode="decimal" defaultValue={lens?.minFocusDistanceM} />
+                <Field name="filterDiameterMm" label="Diamètre filtre (mm)" type="text" inputMode="decimal" defaultValue={lens?.filterDiameterMm} />
+              </div>
+            </div>
+          </section>
+
+          <section>
+            <div className="form-section-header">
+              <h3 className="form-section-title">Prix & poids</h3>
+            </div>
+            <div className="form-section-body">
+              <div className="form-row">
+                <Field name="priceEur" label="Prix (€)" type="text" inputMode="decimal" defaultValue={lens?.priceEur} />
+                <Field name="weightG" label="Poids (g)" type="text" inputMode="decimal" defaultValue={lens?.weightG} />
+              </div>
+            </div>
+          </section>
+
         </div>
-        <fieldset className="options-fieldset"><legend>Options</legend>{referenceData.options.map((option) => <label key={option.id}><input name="optionIds" type="checkbox" value={option.id} checked={selectedOptionIds.has(option.id)} onChange={(event) => toggleOption(option.id, event.target.checked)} /> <strong>{option.code}</strong> — {option.description}</label>)}</fieldset>
+        <fieldset className="options-fieldset"><legend>Options</legend>{brandOptions.length === 0 ? <p className="empty-state">Aucune option pour cette marque.</p> : brandOptions.map((option) => <label key={option.id}><input name="optionIds" type="checkbox" value={option.id} checked={selectedOptionIds.has(option.id)} onChange={(event) => toggleOption(option.id, event.target.checked)} /> <strong>{option.code}</strong> — {option.description}</label>)}</fieldset>
         <div className="checkbox-row"><label><input name="isFavorite" type="checkbox" defaultChecked={lens?.isFavorite} /> Favori</label><label><input name="isNextPurchase" type="checkbox" defaultChecked={lens?.isNextPurchase} /> Prochain achat</label><label><input name="isOwned" type="checkbox" defaultChecked={lens?.isOwned} /> Possédé</label></div>
-        <button className="primary-button">Enregistrer</button>
+        <div className="form-actions">
+          <button type="button" className="ghost-button" onClick={onClose}>Annuler</button>
+          <button className="primary-button">Enregistrer</button>
+        </div>
       </form>
     </div>
   );
@@ -112,7 +188,7 @@ function buildLabel(referenceData: LensReferenceData, fields: FormLabelFields) {
     focalMaxMm,
     maxApertureAtMinFocal,
     maxApertureAtMaxFocal,
-    options: referenceData.options.filter((option) => fields.optionIds.includes(option.id))
+    options: referenceData.options.filter((option) => fields.optionIds.includes(option.id) && option.brandId === fields.brandId)
   });
 }
 
@@ -130,6 +206,6 @@ function ControlledField({ name, label, type = "text", inputMode, value, onChang
   return <label>{label}<input name={name} type={type} inputMode={inputMode} value={value} onChange={(event) => onChange(event.target.value)} required={required} /></label>;
 }
 
-function Field({ name, label, type = "text", step, inputMode, defaultValue, required }: { name: string; label: string; type?: string; step?: string; inputMode?: React.HTMLAttributes<HTMLInputElement>["inputMode"]; defaultValue?: string | number | null; required?: boolean }) {
-  return <label>{label}<input name={name} type={type} step={step} inputMode={inputMode} defaultValue={defaultValue ?? ""} required={required} /></label>;
+function Field({ name, label, type = "text", step, inputMode, defaultValue, required, placeholder }: { name: string; label: string; type?: string; step?: string; inputMode?: React.HTMLAttributes<HTMLInputElement>["inputMode"]; defaultValue?: string | number | null; required?: boolean; placeholder?: string }) {
+  return <label>{label}<input name={name} type={type} step={step} inputMode={inputMode} defaultValue={defaultValue ?? ""} required={required} placeholder={placeholder} /></label>;
 }

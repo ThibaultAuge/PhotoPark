@@ -20,8 +20,8 @@ const refs = {
   mount: "E",
   sensorType: "FULL_FRAME" as const,
   options: [
-    { id: "33333333-3333-4333-8333-333333333331", code: "DG", description: "Digital" },
-    { id: "33333333-3333-4333-8333-333333333332", code: "DN", description: "Mirrorless" }
+    { id: "33333333-3333-4333-8333-333333333331", code: "DG", description: "Digital", brandId: "11111111-1111-4111-8111-111111111111" },
+    { id: "33333333-3333-4333-8333-333333333332", code: "DN", description: "Mirrorless", brandId: "11111111-1111-4111-8111-111111111111" }
   ]
 };
 
@@ -33,15 +33,15 @@ const baseLensInput: LensInput = {
   focalMaxMm: 70,
   maxApertureAtMinFocal: 2.8,
   maxApertureAtMaxFocal: 4,
-  minAperture: 22,
+  minApertureAtMinFocal: null,
+  minApertureAtMaxFocal: null,
   filterDiameterMm: 82,
   priceEur: 999,
   minFocusDistanceM: 0.18,
   angleAtMinFocalDeg: 84,
   angleAtMaxFocalDeg: 34,
   apertureBlades: 11,
-  groupsCount: 15,
-  elementsCount: 19,
+  opticalFormula: null,
   weightG: 835,
   isFavorite: true,
   isNextPurchase: false,

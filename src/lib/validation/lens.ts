@@ -45,15 +45,15 @@ export const lensSchema = z
     focalMaxMm: requiredPositiveNumber,
     maxApertureAtMinFocal: requiredPositiveNumber,
     maxApertureAtMaxFocal: optionalPositiveNumber,
-    minAperture: optionalPositiveNumber,
+    minApertureAtMinFocal: optionalPositiveNumber,
+    minApertureAtMaxFocal: optionalPositiveNumber,
     filterDiameterMm: optionalNumber,
     priceEur: optionalNumber,
     minFocusDistanceM: optionalNumber,
     angleAtMinFocalDeg: optionalNumber,
     angleAtMaxFocalDeg: optionalNumber,
     apertureBlades: optionalInteger,
-    groupsCount: optionalInteger,
-    elementsCount: optionalInteger,
+    opticalFormula: z.string().max(100).nullable().default(null),
     weightG: optionalNumber,
     isFavorite: z.coerce.boolean().default(false),
     isNextPurchase: z.coerce.boolean().default(false),
@@ -63,9 +63,13 @@ export const lensSchema = z
     path: ["focalMaxMm"],
     message: "La focale max doit être supérieure ou égale à la focale min."
   })
-  .refine((value) => value.minAperture === null || value.minAperture >= Math.max(value.maxApertureAtMinFocal, value.maxApertureAtMaxFocal ?? value.maxApertureAtMinFocal), {
-    path: ["minAperture"],
-    message: "L’ouverture minimale doit être supérieure ou égale aux ouvertures maximales."
+  .refine((value) => value.minApertureAtMinFocal === null || value.minApertureAtMinFocal >= value.maxApertureAtMinFocal, {
+    path: ["minApertureAtMinFocal"],
+    message: "L'ouverture minimale à focale min doit être supérieure ou égale à l'ouverture max."
+  })
+  .refine((value) => value.minApertureAtMaxFocal === null || value.minApertureAtMaxFocal >= (value.maxApertureAtMaxFocal ?? value.maxApertureAtMinFocal), {
+    path: ["minApertureAtMaxFocal"],
+    message: "L'ouverture minimale à focale max doit être supérieure ou égale à l'ouverture max."
   })
   .transform((value) => ({ ...value, maxApertureAtMaxFocal: value.maxApertureAtMaxFocal ?? value.maxApertureAtMinFocal }));
 
@@ -78,15 +82,15 @@ export function parseLensFormData(formData: FormData) {
     focalMaxMm: formData.get("focalMaxMm"),
     maxApertureAtMinFocal: formData.get("maxApertureAtMinFocal"),
     maxApertureAtMaxFocal: formData.get("maxApertureAtMaxFocal"),
-    minAperture: formData.get("minAperture"),
+    minApertureAtMinFocal: formData.get("minApertureAtMinFocal"),
+    minApertureAtMaxFocal: formData.get("minApertureAtMaxFocal"),
     filterDiameterMm: formData.get("filterDiameterMm"),
     priceEur: formData.get("priceEur"),
     minFocusDistanceM: formData.get("minFocusDistanceM"),
     angleAtMinFocalDeg: formData.get("angleAtMinFocalDeg"),
     angleAtMaxFocalDeg: formData.get("angleAtMaxFocalDeg"),
     apertureBlades: formData.get("apertureBlades"),
-    groupsCount: formData.get("groupsCount"),
-    elementsCount: formData.get("elementsCount"),
+    opticalFormula: formData.get("opticalFormula"),
     weightG: formData.get("weightG"),
     isFavorite: formData.get("isFavorite") === "on",
     isNextPurchase: formData.get("isNextPurchase") === "on",

@@ -1,3 +1,4 @@
+import React from "react";
 import type { Lens } from "@/lib/lens/types";
 
 export function LensStatusTags({ lens }: { lens: Lens }) {

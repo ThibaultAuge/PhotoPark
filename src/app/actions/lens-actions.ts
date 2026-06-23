@@ -4,9 +4,9 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { hasValidSession } from "@/lib/auth/session";
 import { assertSameOriginRequest } from "@/lib/auth/csrf";
-import { createBrand, createLens, createMount, createOption, deleteBrand, deleteLens, deleteMount, deleteOption, updateBrand, updateLens, updateMount, updateOption } from "@/lib/db/lens-repository";
+import { createBrand, createLens, createMount, createOption, createOptionGroup, deleteBrand, deleteLens, deleteMount, deleteOption, deleteOptionGroup, replaceGroupMembers, updateBrand, updateLens, updateMount, updateOption, updateOptionGroup } from "@/lib/db/lens-repository";
 import { parseLensFormData } from "@/lib/validation/lens";
-import { parseBrandFormData, parseMountFormData, parseOptionFormData } from "@/lib/validation/reference";
+import { parseBrandFormData, parseMountFormData, parseOptionFormData, parseOptionGroupFormData } from "@/lib/validation/reference";
 
 async function assertAuthenticated() {
   await assertSameOriginRequest();
@@ -79,8 +79,8 @@ export async function deleteMountAction(id: string) {
 
 export async function createOptionAction(formData: FormData) {
   await assertAuthenticated();
-  const { code, description } = parseOptionFormData(formData);
-  createOption(code, description);
+  const { code, description, brandId } = parseOptionFormData(formData);
+  createOption(code, description, brandId);
   revalidatePath("/settings/options");
   revalidatePath("/lenses", "layout");
 }
@@ -97,5 +97,38 @@ export async function deleteOptionAction(id: string) {
   await assertAuthenticated();
   deleteOption(id);
   revalidatePath("/settings/options");
+  revalidatePath("/lenses", "layout");
+}
+
+// --- Option Groups Actions ---
+
+export async function createOptionGroupAction(formData: FormData) {
+  await assertAuthenticated();
+  const { slug, name, type } = parseOptionGroupFormData(formData);
+  createOptionGroup(slug, name, type);
+  revalidatePath("/settings/options/groups");
+  revalidatePath("/lenses", "layout");
+}
+
+export async function updateOptionGroupAction(id: string, formData: FormData) {
+  await assertAuthenticated();
+  const { slug, name, type } = parseOptionGroupFormData(formData);
+  updateOptionGroup(id, slug, name, type);
+  revalidatePath("/settings/options/groups");
+  revalidatePath("/lenses", "layout");
+}
+
+export async function deleteOptionGroupAction(id: string) {
+  await assertAuthenticated();
+  deleteOptionGroup(id);
+  revalidatePath("/settings/options/groups");
+  revalidatePath("/lenses", "layout");
+}
+
+export async function setOptionGroupMembersAction(groupId: string, formData: FormData) {
+  await assertAuthenticated();
+  const optionIds = formData.getAll("optionId") as string[];
+  replaceGroupMembers(groupId, optionIds);
+  revalidatePath("/settings/options/groups");
   revalidatePath("/lenses", "layout");
 }

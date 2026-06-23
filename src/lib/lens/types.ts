@@ -14,7 +14,8 @@ export type Lens = {
   apscFocalMaxEquivalentMm: number;
   maxApertureAtMinFocal: number;
   maxApertureAtMaxFocal: number;
-  minAperture: number | null;
+  minApertureAtMinFocal: number | null;
+  minApertureAtMaxFocal: number | null;
   label: string;
   filterDiameterMm: number | null;
   priceEur: number | null;
@@ -22,8 +23,7 @@ export type Lens = {
   angleAtMinFocalDeg: number | null;
   angleAtMaxFocalDeg: number | null;
   apertureBlades: number | null;
-  groupsCount: number | null;
-  elementsCount: number | null;
+  opticalFormula: string | null;
   weightG: number | null;
   isFavorite: boolean;
   isNextPurchase: boolean;
@@ -39,12 +39,26 @@ export type LensInput = Omit<
 
 export type LensBrand = { id: string; name: string };
 export type LensMount = { id: string; name: string; sensorType: SensorType };
-export type LensOption = { id: string; code: string; description: string };
+export type LensOption = { id: string; code: string; description: string; brandId: string };
+
+export type OptionGroup = {
+  id: string;
+  slug: string;
+  name: string;
+  type: "flag" | "value";
+};
+
+export type OptionGroupMember = {
+  optionId: string;
+  groupId: string;
+};
 
 export type LensReferenceData = {
   brands: LensBrand[];
   mounts: LensMount[];
   options: LensOption[];
+  optionGroups: OptionGroup[];
+  optionGroupMembers: OptionGroupMember[];
 };
 
 export type LensFilters = {

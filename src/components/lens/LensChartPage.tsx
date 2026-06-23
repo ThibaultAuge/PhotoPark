@@ -138,7 +138,7 @@ export function LensChartPage() {
       </aside>
 
       {/* Compare popup */}
-      <LensComparePopup lenses={selectedLenses} onClear={clearSelection} />
+      <LensComparePopup lenses={selectedLenses} onClear={clearSelection} optionGroups={referenceData.optionGroups} optionGroupMembers={referenceData.optionGroupMembers} />
 
       {/* Modals */}
       {showCreate ? (

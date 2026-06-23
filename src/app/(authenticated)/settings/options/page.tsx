@@ -3,5 +3,5 @@ import { OptionManager } from "@/components/settings/OptionManager";
 
 export default function OptionsSettingsPage() {
   const referenceData = listReferenceData();
-  return <OptionManager options={referenceData.options} />;
+  return <OptionManager options={referenceData.options} brands={referenceData.brands} />;
 }

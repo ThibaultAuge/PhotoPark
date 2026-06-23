@@ -56,7 +56,7 @@ export function LensListPage() {
         ))}
       </div>
 
-      <LensComparePopup lenses={selectedLenses} onClear={clearSelection} />
+      <LensComparePopup lenses={selectedLenses} onClear={clearSelection} optionGroups={referenceData.optionGroups} optionGroupMembers={referenceData.optionGroupMembers} />
 
       {showCreate ? <LensForm title="Ajouter un objectif" referenceData={referenceData} onClose={() => setShowCreate(false)} /> : null}
       {editingLens ? <LensForm title="Modifier l'objectif" lens={editingLens} referenceData={referenceData} onClose={() => setEditingLens(null)} /> : null}

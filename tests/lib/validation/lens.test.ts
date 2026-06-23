@@ -12,15 +12,15 @@ function validLensValues() {
     focalMaxMm: "70",
     maxApertureAtMinFocal: "2.8",
     maxApertureAtMaxFocal: "4",
-    minAperture: "22",
+    minApertureAtMinFocal: "22",
+    minApertureAtMaxFocal: "",
     filterDiameterMm: "82",
     priceEur: "1200",
     minFocusDistanceM: "0.38",
     angleAtMinFocalDeg: "84",
     angleAtMaxFocalDeg: "34",
     apertureBlades: "9",
-    groupsCount: "14",
-    elementsCount: "18",
+    opticalFormula: "14/18",
     weightG: "695",
     isFavorite: true,
     isNextPurchase: false,
@@ -37,15 +37,14 @@ function validFormData() {
   formData.set("focalMaxMm", "70");
   formData.set("maxApertureAtMinFocal", "2.8");
   formData.set("maxApertureAtMaxFocal", "4");
-  formData.set("minAperture", "22");
+  formData.set("minApertureAtMinFocal", "22");
   formData.set("filterDiameterMm", "82");
   formData.set("priceEur", "1200");
   formData.set("minFocusDistanceM", "0.38");
   formData.set("angleAtMinFocalDeg", "84");
   formData.set("angleAtMaxFocalDeg", "34");
   formData.set("apertureBlades", "9");
-  formData.set("groupsCount", "14");
-  formData.set("elementsCount", "18");
+  formData.set("opticalFormula", "14/18");
   formData.set("weightG", "695");
   formData.set("isFavorite", "on");
   formData.set("isOwned", "on");
@@ -78,11 +77,12 @@ describe("lens validation", () => {
       ...validLensValues(),
       maxApertureAtMinFocal: "2,8",
       maxApertureAtMaxFocal: "4,5",
-      minAperture: "22,0"
+      minApertureAtMinFocal: "22,0", minApertureAtMaxFocal: "32,0"
     })).toMatchObject({
       maxApertureAtMinFocal: 2.8,
       maxApertureAtMaxFocal: 4.5,
-      minAperture: 22
+      minApertureAtMinFocal: 22,
+      minApertureAtMaxFocal: 32
     });
   });
 
@@ -100,8 +100,7 @@ describe("lens validation", () => {
       angleAtMinFocalDeg: "84,1",
       angleAtMaxFocalDeg: "34,2",
       apertureBlades: "9,0",
-      groupsCount: "14,0",
-      elementsCount: "18,0",
+      opticalFormula: "14/18",
       weightG: "695,5"
     })).toMatchObject({
       focalMinMm: 24.5,
@@ -112,8 +111,7 @@ describe("lens validation", () => {
       angleAtMinFocalDeg: 84.1,
       angleAtMaxFocalDeg: 34.2,
       apertureBlades: 9,
-      groupsCount: 14,
-      elementsCount: 18,
+      opticalFormula: "14/18",
       weightG: 695.5
     });
   });
@@ -147,14 +145,16 @@ describe("lens validation", () => {
   test("lensSchema maps empty optional numeric fields to null", () => {
     const parsed = lensSchema.parse({
       ...validLensValues(),
-      minAperture: "",
+      minApertureAtMinFocal: "",
+      minApertureAtMaxFocal: "",
       filterDiameterMm: "",
       priceEur: null,
       weightG: undefined
     });
 
     expect(parsed).toMatchObject({
-      minAperture: null,
+      minApertureAtMinFocal: null,
+      minApertureAtMaxFocal: null,
       filterDiameterMm: null,
       priceEur: null,
       weightG: null
@@ -168,14 +168,12 @@ describe("lens validation", () => {
     const parsed = lensSchema.parse({
       ...validLensValues(),
       apertureBlades: "",
-      groupsCount: null,
-      elementsCount: undefined
+      opticalFormula: null
     });
 
     expect(parsed).toMatchObject({
       apertureBlades: null,
-      groupsCount: null,
-      elementsCount: null
+      opticalFormula: null
     });
   });
 
@@ -194,20 +192,6 @@ describe("lens validation", () => {
    */
   test("lensSchema rejects decimal aperture blade counts", () => {
     expect(() => lensSchema.parse({ ...validLensValues(), apertureBlades: "9.5" })).toThrow(ZodError);
-  });
-
-  /**
-   * Verifies that optical group counts reject decimal values
-   */
-  test("lensSchema rejects decimal optical group counts", () => {
-    expect(() => lensSchema.parse({ ...validLensValues(), groupsCount: "14.5" })).toThrow(ZodError);
-  });
-
-  /**
-   * Verifies that optical element counts reject decimal values
-   */
-  test("lensSchema rejects decimal optical element counts", () => {
-    expect(() => lensSchema.parse({ ...validLensValues(), elementsCount: "18.5" })).toThrow(ZodError);
   });
 
   /**
@@ -243,26 +227,26 @@ describe("lens validation", () => {
   /**
    * Verifies that minimum aperture cannot be below maximum aperture
    */
-  test("lensSchema rejects invalid minimum aperture", () => {
-    expect(() => lensSchema.parse({ ...validLensValues(), minAperture: "2" })).toThrow(/ouverture minimale/i);
+  test("lensSchema rejects invalid minimum aperture at min focal", () => {
+    expect(() => lensSchema.parse({ ...validLensValues(), minApertureAtMinFocal: "2" })).toThrow(/ouverture minimale/i);
   });
 
   /**
    * Verifies that zero is not accepted as a provided minimum aperture
    */
   test("lensSchema rejects zero minimum aperture", () => {
-    expect(() => lensSchema.parse({ ...validLensValues(), minAperture: "0" })).toThrow(ZodError);
+    expect(() => lensSchema.parse({ ...validLensValues(), minApertureAtMinFocal: "0" })).toThrow(ZodError);
   });
 
   /**
-   * Verifies that minimum aperture is checked against defaulted max aperture
+   * Verifies that minimum aperture at max focal is checked against defaulted max aperture
    */
-  test("lensSchema rejects invalid minimum aperture when max focal aperture is empty", () => {
+  test("lensSchema rejects invalid minimum aperture at max focal when max focal aperture is empty", () => {
     expect(() => lensSchema.parse({
       ...validLensValues(),
       maxApertureAtMinFocal: "2,8",
       maxApertureAtMaxFocal: "",
-      minAperture: "2"
+      minApertureAtMaxFocal: "2"
     })).toThrow(/ouverture minimale/i);
   });
 

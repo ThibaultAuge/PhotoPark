@@ -10,19 +10,21 @@ Application Next.js 15 / TypeScript (`photopark`) pour inventorier, visualiser e
   - `/bodies` — Page placeholder vide pour futur inventaire boîtiers
   - `/accessories` — Page placeholder vide pour futur inventaire accessoires
   - `/settings/brands` — CRUD marques
-  - `/settings/mounts` — CRUD montures (avec `sensorType`)
-  - `/settings/options` — CRUD options objectifs (code + description)
-  - `/login` — Écran de connexion
+   - `/settings/mounts` — CRUD montures (avec `sensorType`)
+   - `/settings/options` — CRUD options objectifs (code + description + brandId), filtrées par marque sélectionnée
+   - `/settings/options/groups` — CRUD groupes d'options (slug, name, type: "flag"/"value") + assignation d'options par marque
+   - `/login` — Écran de connexion
 - **Navigation :** `AppNav` (barre supérieure avec liens + bouton Déconnexion) et `SubNav` (sous-navigation réutilisable pour `/lenses` et `/settings`).
 - **État partagé via LensProvider :** Contexte React (`useLensContext`) créé dans le layout `/lenses`, qui charge les données côté serveur (`listLenses()` + `listReferenceData()`). Le contexte expose : `filters`, `setFilters`, `resetFilters`, `selectedIds`, `toggleSelected`, `clearSelection`, `hiddenIds`, `hideLens`, `editingLens`, `setEditingLens`, `showCreate`, `setShowCreate`, `initialLenses`, `filteredLenses`, `referenceData`.
 - **Persistance SQLite** via `better-sqlite3`, fichier par défaut `./data/photos.sqlite` ou `DATABASE_PATH`.
 - **CRUD objectifs** avec référentiels séparés pour marques, montures et options.
-- Les options sont une relation N-N (`lens_option_links`) et portent `code` + `description`.
+- Les options sont une relation N-N (`lens_option_links`) et portent `code` + `description` + `brandId`. Elles sont filtrées par marque dans le formulaire objectif et dans le gestionnaire de paramètres. Sur changement de marque dans le formulaire, les options ne correspondant pas à la nouvelle marque sont retirées de la sélection.
+- Les **groupes d'options** (`option_groups`) permettent de classer les options par catégorie : slug, name, type (`"flag"` = Oui/Non, `"value"` = affiche le code). L'appartenance d'une option à un groupe est définie dans `option_group_members` (relation N-N). Les groupes sont optionnellement affichés dans le tableau de comparaison.
 - Les montures portent le `sensorType` (`FULL_FRAME` ou `APS_C`), utilisé pour calculer l'équivalent APS-C.
 - **UI inventaire :** Filtres, tableau desktop, cartes mobile, graphique focale/ouverture, sélection et comparaison de 2 à 5 objectifs. Le tableau et les cartes affichent le type d'objectif dérivé (`Fixe` si `focalMinMm === focalMaxMm`, sinon `Zoom`) et évitent de répéter les plages identiques (ex. `7.8 mm`, `f/4`).
-- Le formulaire objectif propose un import/aperçu client depuis un libellé : les marques, montures, focales, ouvertures max et options reconnues sont préremplies depuis les référentiels existants, puis l'aperçu est régénéré depuis les champs structurés. Après création ou modification réussie, le formulaire se ferme automatiquement ; il reste ouvert si l'action serveur échoue.
+- Le formulaire objectif propose un import/aperçu client depuis un libellé : les marques, montures, focales, ouvertures max et options reconnues sont préremplies depuis les référentiels existants, puis l'aperçu est régénéré depuis les champs structurés. Après création ou modification réussie, le formulaire se ferme automatiquement ; il reste ouvert si l'action serveur échoue (ex. doublon détecté), et l'erreur est affichée dans un `<div className="form-error" role="alert">`.
 - Les pages de paramètres (marques, montures, options) chargent leurs propres données référentielles côté serveur — elles n'utilisent pas `LensProvider`.
-- Tests Vitest sur validation, utilitaires métier, parsing de libellés, dépôt SQLite, formulaire, page chart et popup comparaison (couvrant compteurs toolbar, classes checked/selected, interactions checkbox/étoile/libellé, props transmises à LensChart/LensCompareTable/LensComparePopup, formulaires modaux).
+- Tests Vitest sur validation, utilitaires métier, parsing de libellés, dépôt SQLite, formulaire, page chart et popup comparaison (couvrant compteurs toolbar, classes checked/selected, interactions checkbox/étoile/libellé, props transmises à LensChart/LensCompareTable/LensComparePopup, formulaires modaux, groupes d'options, gestionnaire d'options par marque).
 
 ## Relevant Files
 - `src/app/page.tsx` — redirige vers `/lenses`.
@@ -37,33 +39,36 @@ Application Next.js 15 / TypeScript (`photopark`) pour inventorier, visualiser e
 - `src/app/(authenticated)/settings/brands/page.tsx` — rend `BrandManager`.
 - `src/app/(authenticated)/settings/mounts/page.tsx` — rend `MountManager`.
 - `src/app/(authenticated)/settings/options/page.tsx` — rend `OptionManager`.
+- `src/app/(authenticated)/settings/options/groups/page.tsx` — rend `OptionGroupManager`.
 - `src/app/actions/auth-actions.ts` — login/logout serveur, rate limit, création session.
 - `src/app/actions/lens-actions.ts` — actions serveur CRUD objectifs ET référentiels.
 - `src/lib/auth/*.ts` — session cookie HMAC, CSRF same-origin, rate limit, vérification mot de passe.
-- `src/lib/db/lens-repository.ts` — schéma SQLite, seed référentiels, migration/repair, CRUD.
-- `src/lib/lens/types.ts` — types métier objectifs/référentiels/filtres.
+- `src/lib/db/lens-repository.ts` — schéma SQLite (tables `lens_options` avec `UNIQUE(code, brandId)`, `option_groups`, `option_group_members`), seed référentiels avec options Canon + groupes, migration legacy des options sans brandId, CRUD, détection doublons (exporte `DuplicateLensError`).
+- `src/lib/lens/types.ts` — types métier objectifs/référentiels/filtres (inclut `OptionGroup`, `OptionGroupMember`).
 - `src/lib/lens/lens-utils.ts` — libellés, équivalents APS-C, formatage.
-- `src/lib/lens/label-parser.ts` — parsing client des libellés collés dans le formulaire.
+- `src/lib/lens/label-parser.ts` — parsing client des libellés collés dans le formulaire (filtre les options par marque identifiée).
 - `src/lib/validation/lens.ts` — parsing/validation formulaire objectif.
-- `src/lib/validation/reference.ts` — validation référentiels.
+- `src/lib/validation/reference.ts` — validation référentiels (inclut `optionGroupSchema`, `parseOptionGroupFormData`).
 - `src/components/layout/AppNav.tsx` — barre de navigation principale avec liens + Déconnexion.
 - `src/components/layout/SubNav.tsx` — sous-navigation réutilisable.
 - `src/components/lens/LensProvider.tsx` — contexte React pour état partagé (filtres, sélection, masquage, formulaire) entre les pages `/lenses`.
 - `src/components/lens/LensListPage.tsx` — consomme `LensProvider`, rend filtres, tableau, cartes, `LensComparePopup`, formulaire.
 - `src/components/lens/LensChartPage.tsx` — consomme `LensProvider`, rend layout horizontal flex : chart area (4/5) avec `LensChart` recevant `checkedLenses` (filtrés de `initialLenses` par `checkedIds`, état local `useState`, pas de limite) + `selectedIds` (pour surlignage orange) + `onToggleSelected` (clic sur graphique pour ajouter/retirer de la comparaison, max 5). Sidebar (1/5) avec `LensFiltersBar` + liste filtrable à deux contrôles par ligne : **checkbox** (visibilité sur le graphique, `toggleChecked`) et **bouton étoile** (comparaison, `toggleSelected` du contexte). Puis `LensComparePopup` en bas (flottant). Utilise `useMemo` pour `checkedLenses`, `selectedLenses`, `checkedSet`, `selectedSet`. Le compteur en toolbar utilise `checkedLenses.length`.
 - `src/components/lens/LensChart.tsx` — Graphique SVG interactif D3.js avec navigation zoom (contre-échelle des cercles), bouton réinitialiser. Reçoit `lenses` (checkedLenses pour l'affichage), `selectedIds` (pour surlignage orange), `onToggleSelected` (clic sur ligne/cercle → ajoute ou retire de la comparaison).
-- `src/components/lens/LensComparePopup.tsx` — Popup flottant (fixe en bas) quand des objectifs sont sélectionnés, avec compteur, libellés, bouton "Comparer" (ouvre une modale contenant `LensCompareTable`) et "Vider". Gère Escape, verrouillage scroll, focus management.
-- `src/components/lens/*.tsx` — autres composants UI (formulaire, table, cartes, comparateur, etc.).
+- `src/components/lens/LensComparePopup.tsx` — Popup flottant (fixe en bas) quand des objectifs sont sélectionnés, avec compteur, libellés, bouton "Comparer" (ouvre une modale contenant `LensCompareTable`) et "Vider". Gère Escape, verrouillage scroll, focus management. Accepte optionnellement `optionGroups` et `optionGroupMembers` pour les passer à la table.
+- `src/components/lens/LensCompareTable.tsx` — Tableau comparatif acceptant optionnellement `optionGroups` et `optionGroupMembers` pour afficher des lignes par groupe (`flag` → "Oui"/"—", `value` → codes séparés par virgule).
+- `src/components/lens/*.tsx` — autres composants UI (formulaire, table, cartes, etc.).
 - `src/components/settings/BrandManager.tsx` — CRUD marques.
 - `src/components/settings/MountManager.tsx` — CRUD montures avec `sensorType`.
-- `src/components/settings/OptionManager.tsx` — CRUD options.
+- `src/components/settings/OptionManager.tsx` — CRUD options (filtrées par marque sélectionnée).
+- `src/components/settings/OptionGroupManager.tsx` — CRUD groupes d'options + assignation d'options par marque.
 - `tests/**/*.test.ts(x)` — couverture Vitest existante.
 
 ## Usage
 - **Pour tout affichage lié aux objectifs :** utiliser `useLensContext()` depuis `@/components/lens/LensProvider` pour accéder aux filtres, sélection, masquage et données. Ne pas dupliquer l'état.
-- **Pour créer/modifier/supprimer un objectif :** utiliser les actions serveur dans `src/app/actions/lens-actions.ts` (`createLensAction`, `updateLensAction`, `deleteLensAction`). Elles appliquent auth, CSRF et `revalidatePath("/lenses", "layout")`.
-- **Pour créer/modifier/supprimer une marque, monture ou option :** utiliser les actions correspondantes (`createBrandAction`, `updateMountAction`, `deleteOptionAction`, etc.). Ces actions `revalidatePath` la page concernée **et** `revalidatePath("/lenses", "layout")`.
-- **Les pages de paramètres** (`/settings/brands`, `/settings/mounts`, `/settings/options`) chargent leurs propres données référentielles côté serveur — elles n'utilisent pas `LensProvider`.
+- **Pour créer/modifier/supprimer un objectif :** utiliser les actions serveur dans `src/app/actions/lens-actions.ts` (`createLensAction`, `updateLensAction`, `deleteLensAction`). Elles appliquent auth, CSRF et `revalidatePath("/lenses", "layout")`. Une vérification de doublon est effectuée dans la transaction côté dépôt : si un objectif avec les mêmes `brandId`, `focalMinMm`, `focalMaxMm`, `maxApertureAtMinFocal`, `maxApertureAtMaxFocal`, `mountId` existe déjà, un `DuplicateLensError` est levé (message contenant le libellé existant). L'erreur est attrapée par le formulaire client (`submitAndClose` try/catch) et affichée dans le `<div className="form-error">` — le formulaire reste ouvert pour permettre à l'utilisateur de corriger ou annuler.
+- **Pour créer/modifier/supprimer une marque, monture, option ou groupe d'options :** utiliser les actions correspondantes (`createBrandAction`, `updateMountAction`, `deleteOptionAction`, `createOptionGroupAction`, `setOptionGroupMembersAction`, etc.). Ces actions `revalidatePath` la page concernée **et** `revalidatePath("/lenses", "layout")`.
+- **Les pages de paramètres** (`/settings/brands`, `/settings/mounts`, `/settings/options`, `/settings/options/groups`) chargent leurs propres données référentielles côté serveur — elles n'utilisent pas `LensProvider`.
 - **Le zoom D3.js dans LensChart :** navigation zoom (pas loupe). Les traits utilisent `vectorEffect="non-scaling-stroke"` pour une épaisseur constante. Les rayons des cercles sont contre-échelonnés via la fonction `counterScaleCircles(root, k)`. Le zoom/pan est initialisé une seule fois dans un `useEffect(() => {}, [])` ; la transformation D3 est appliquée directement au DOM — aucune re-render React pendant les gestes. L'instance D3 zoom est stockée dans `zoomRef`. `counterScaleCircles` est appelée depuis le handler D3 (tous les événements de zoom) et depuis un `useLayoutEffect` qui re-synchronise en amont du rendu quand `lenses` ou `selectedIds` changent (pour éviter un flash de rayons non contre-échelonnés après un re-render React en zoom). Ne pas remplacer ce pattern par un état React.
 - **Contre-échelle des cercles :** une seule constante contrôle le comportement : `MIN_CIRCLE_R` (2). La formule appliquée est `Math.max(MIN_CIRCLE_R, base / k)` avec un plancher. Les cercles restent à une taille visuelle constante à tout niveau de zoom (rayon visuel = `k × (base/k)` = **base constant**). Les cercles portent un attribut `data-base-r` contenant le rayon de base. Pour modifier le rendu du zoom, éditer le `MIN_CIRCLE_R` et/ou `base / k` dans `counterScaleCircles`.
 - **Le graphique montre uniquement les objectifs cochés :** `LensChart` reçoit `checkedLenses` (filtrés depuis `initialLenses` par `checkedIds`, état local `useState` dans `LensChartPage`, pas de limite) — rien n'apparaît par défaut tant qu'au moins un objectif n'est pas coché dans la sidebar. Les filtres (`LensFiltersBar`) et `hiddenIds` n'affectent que la liste de la sidebar (pour faciliter le choix), pas le jeu d'objectifs disponibles pour la sélection. Le clic sur une ligne/cercle du graphique appelle `onToggleSelected` (ajoute ou retire de la comparaison, max 5). Les objectifs en comparaison sont surlignés en orange via `selectedIds`. La sidebar a deux contrôles par ligne : **checkbox** (`toggleChecked`, visibilité, pas de limite) et **bouton étoile** (`toggleSelected`, comparaison, max 5). Le clic sur le libellé déclenche aussi `toggleChecked`.
@@ -71,8 +76,10 @@ Application Next.js 15 / TypeScript (`photopark`) pour inventorier, visualiser e
 - Réutiliser `lens-repository.ts` pour toute lecture/écriture SQLite au lieu d'accéder directement à la base depuis les composants.
 - Réutiliser `parseLensFormData` / `lensSchema` pour accepter les champs numériques du formulaire : les nombres peuvent utiliser un point ou une virgule.
 - Pour créer/modifier des objectifs, fournir des IDs de référentiels (`brandId`, `mountId`, `optionIds`) ; marque, monture, capteur, options, label et équivalents APS-C sont normalisés côté dépôt.
-- Pour importer un objectif depuis un libellé collé, réutiliser `parseLensLabel` avec les référentiels chargés ; pour les libellés générés/aperçus, réutiliser `generateLensLabel`. Ne pas persister de libellé libre : le serveur dérive toujours `label` depuis les champs structurés.
-- Pour la comparaison : sélection de 2 à 5 objectifs via `toggleSelected` du contexte ; utiliser `LensComparePopup` (qui contient `LensCompareTable` dans sa modale).
+- Pour importer un objectif depuis un libellé collé, réutiliser `parseLensLabel` avec les référentiels chargés ; pour les libellés générés/aperçus, réutiliser `generateLensLabel`. Ne pas persister de libellé libre : le serveur dérive toujours `label` depuis les champs structurés. Le parser filtre les options par marque identifiée (`parsed.brandId`) pour éviter les collisions entre marques.
+- **Options par marque :** Les options sont liées à une marque spécifique via `brandId`. Dans le formulaire objectif (`LensForm.tsx`), `brandOptions` est un `useMemo` filtrant `referenceData.options` par `brandId` sélectionné. Sur changement de marque, les options ne correspondant pas à la nouvelle marque sont retirées de la sélection (`updateFields`). Dans le gestionnaire de paramètres (`OptionManager.tsx`), un sélecteur de marque filtre les options affichées.
+- **Groupes d'options :** CRUD via `/settings/options/groups` (composant `OptionGroupManager.tsx`). Chaque groupe a un `slug`, `name`, et `type` (`"flag"` ou `"value"`). Les options sont assignées aux groupes par marque via `setOptionGroupMembersAction` (appelle `replaceGroupMembers`). L'affichage dans la comparaison (`LensCompareTable`) utilise les props optionnelles `optionGroups` et `optionGroupMembers` pour ajouter des lignes par groupe : `flag` → "Oui"/"—", `value` → codes séparés par virgule.
+- Pour la comparaison : sélection de 2 à 5 objectifs via `toggleSelected` du contexte ; utiliser `LensComparePopup` (qui contient `LensCompareTable` dans sa modale). La popup et la table acceptent optionnellement les props `optionGroups` et `optionGroupMembers` pour afficher les lignes de groupes d'options dans la comparaison.
 - Pour les calculs optiques, libellés, plages focale/ouverture affichées et type `Fixe`/`Zoom`, réutiliser `src/lib/lens/lens-utils.ts` ; ne dupliquer ni le facteur APS-C, ni la génération de label, ni les règles d'affichage des plages identiques.
 - Pour étendre l'app à boîtiers ou accessoires : créer les pages sous `(authenticated)/` en suivant le pattern existant (layout avec SubNav, composant manager dédié).
 
@@ -82,8 +89,9 @@ Application Next.js 15 / TypeScript (`photopark`) pour inventorier, visualiser e
 - **Filtres et sidebar :** les filtres (`LensFiltersBar`) et `hiddenIds` (via `hideLens`) n'affectent que la liste de la sidebar — pas le graphique. Le graphique reçoit `initialLenses` et montre uniquement les objectifs cochés (`checkedLenses` filtré par `checkedIds`). Le clic sur une ligne/cercle du graphique appelle `onToggleSelected` (ajoute/retire comparaison). Les checkboxes de la sidebar contrôlent la visibilité sur le graphique. Les boutons étoile contrôlent la comparaison.
 - L'ouverture max à focale max est optionnelle côté formulaire ; la validation remplace une valeur vide par l'ouverture max à focale min.
 - `minAperture` doit rester supérieure ou égale aux ouvertures maximales, avec fallback sur l'ouverture max à focale min si celle à focale max est vide.
-- `initializeSchema()` répare automatiquement `lens_option_links` si sa FK `lensId` pointe encore vers une table legacy `lenses_legacy_*` ; il faut redémarrer `npm run dev` pour déclencher cette réparation au démarrage du dépôt.
+- `initializeSchema()` migre automatiquement l'ancienne table `lens_options` sans `brandId` : renommage, recréation avec `UNIQUE(code, brandId)`, assignation des options orphelines à la marque "Autre". Répare aussi `lens_option_links` si sa FK `lensId` pointe encore vers une table legacy `lenses_legacy_*` ; il faut redémarrer `npm run dev` pour déclencher ces réparations au démarrage du dépôt.
 - Une migration legacy renomme l'ancienne table `lenses` en `lenses_legacy_<timestamp>` puis recrée le schéma actuel et transforme les anciennes chaînes `brand`, `mount`, `options` en référentiels.
+- `seedReferenceData` crée les référentiels Canon : marque, montures (RF, RF-S, EF, EF-S), options (L, IS, USM, STM) avec `brandId`, et 3 groupes d'options (Stabilisation/flag, Motorisation/value, Série/value) avec leurs membres.
 - `LensChart.tsx` utilise des constantes module-level (`CHART_WIDTH`, `CHART_HEIGHT`, `MARGIN`, `PALETTE`, `ZOOM_SCALE_EXTENT`, `MIN_CIRCLE_R`) pour la configuration du graphique et du zoom.
 - Le `useEffect` de zoom D3 nettoie ses écouteurs au démontage : `svg.on(".zoom", null)` pour l'SVG et `d3.select(window).on(".zoom", null)` pour les écouteurs gestuels au niveau fenêtre (pinch-to-zoom).
 - `import React from "react"` est requis pour le transform JSX classique utilisé par Vitest (le mock de `react` dans les tests l'exige).

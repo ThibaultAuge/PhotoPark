@@ -1,3 +1,4 @@
+import React from "react";
 import type { Lens } from "@/lib/lens/types";
 import { deleteLensAction } from "@/app/actions/lens-actions";
 import { formatApertureRange, formatFocalRange, getLensKind } from "@/lib/lens/lens-utils";

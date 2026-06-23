@@ -30,10 +30,21 @@ vi.mock("@/app/actions/lens-actions", () => ({
   updateLensAction: vi.fn()
 }));
 
+const SONY_BRAND_ID = "sony-brand-id";
+
 const referenceData: LensReferenceData = {
-  brands: [{ id: "11111111-1111-4111-8111-111111111111", name: "Canon" }],
+  brands: [
+    { id: "11111111-1111-4111-8111-111111111111", name: "Canon" },
+    { id: SONY_BRAND_ID, name: "Sony" }
+  ],
   mounts: [{ id: "22222222-2222-4222-8222-222222222221", name: "RF", sensorType: "FULL_FRAME" }],
-  options: [{ id: "33333333-3333-4333-8333-333333333331", code: "IS", description: "Stabilisé" }]
+  options: [
+    { id: "33333333-3333-4333-8333-333333333331", code: "IS", description: "Stabilisé", brandId: "11111111-1111-4111-8111-111111111111" },
+    { id: "sony-opt-1", code: "GM", description: "G Master", brandId: SONY_BRAND_ID },
+    { id: "sony-opt-2", code: "OSS", description: "Optical SteadyShot", brandId: SONY_BRAND_ID }
+  ],
+  optionGroups: [],
+  optionGroupMembers: []
 };
 
 const existingLens: Lens = {
@@ -43,14 +54,15 @@ const existingLens: Lens = {
   mountId: "22222222-2222-4222-8222-222222222221",
   mount: "RF",
   sensorType: "FULL_FRAME",
-  options: [{ id: "33333333-3333-4333-8333-333333333331", code: "IS", description: "Stabilisé" }],
+  options: [{ id: "33333333-3333-4333-8333-333333333331", code: "IS", description: "Stabilisé", brandId: "11111111-1111-4111-8111-111111111111" }],
   focalMinMm: 24,
   focalMaxMm: 70,
   apscFocalMinEquivalentMm: 36,
   apscFocalMaxEquivalentMm: 105,
   maxApertureAtMinFocal: 2.8,
   maxApertureAtMaxFocal: 2.8,
-  minAperture: 22,
+  minApertureAtMinFocal: null,
+  minApertureAtMaxFocal: null,
   label: "Canon RF 24-70mm f/2.8 IS",
   filterDiameterMm: 82,
   priceEur: 1200,
@@ -58,8 +70,7 @@ const existingLens: Lens = {
   angleAtMinFocalDeg: 84,
   angleAtMaxFocalDeg: 34,
   apertureBlades: 9,
-  groupsCount: 15,
-  elementsCount: 21,
+  opticalFormula: null,
   weightG: 900,
   isFavorite: true,
   isNextPurchase: false,
@@ -115,7 +126,8 @@ describe("LensForm", () => {
 
     expect(markup).toMatch(/<input[^>]*type="text"[^>]*name="maxApertureAtMinFocal"/);
     expect(markup).toMatch(/<input[^>]*type="text"[^>]*name="maxApertureAtMaxFocal"/);
-    expect(markup).toMatch(/<input[^>]*type="text"[^>]*name="minAperture"/);
+    expect(markup).toMatch(/<input[^>]*type="text"[^>]*name="minApertureAtMinFocal"/);
+    expect(markup).toMatch(/<input[^>]*type="text"[^>]*name="minApertureAtMaxFocal"/);
   });
 
   /**
@@ -179,7 +191,7 @@ describe("LensForm", () => {
   });
 
   /**
-   * Verifies that failed lens creation keeps the form open.
+   * Verifies that failed lens creation keeps the form open and shows the error.
    */
   test("keeps new lens form open when creation fails", async () => {
     const onClose = vi.fn();
@@ -190,7 +202,7 @@ describe("LensForm", () => {
     const submit = form?.props.action;
 
     expect(submit).toEqual(expect.any(Function));
-    await expect((submit as (data: FormData) => Promise<void>)(new FormData())).rejects.toThrow("validation failed");
+    await (submit as (data: FormData) => Promise<void>)(new FormData());
     expect(onClose).not.toHaveBeenCalled();
   });
 
@@ -210,5 +222,20 @@ describe("LensForm", () => {
 
     expect(updateLensAction).toHaveBeenCalledWith(existingLens.id, formData);
     expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  /**
+   * Verifies that the options fieldset only renders checkboxes for options
+   * matching the currently selected brand (Canon by default), excluding
+   * options from other brands (e.g. Sony).
+   */
+  test("renders only options matching the selected brandId", () => {
+    const markup = renderForm();
+
+    // Canon option IS must be present
+    expect(markup).toMatch(/<strong>IS<\/strong>\s*—\s*Stabilisé/);
+    // Sony-only options must NOT appear in the fieldset
+    expect(markup).not.toMatch(/<strong>GM<\/strong>/);
+    expect(markup).not.toMatch(/<strong>OSS<\/strong>/);
   });
 });

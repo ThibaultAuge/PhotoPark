@@ -12,7 +12,7 @@ Application privée Next.js pour inventorier, filtrer, visualiser et comparer de
 - Stockage SQLite local avec `better-sqlite3`.
 - CRUD complet des objectifs.
 - Import client depuis un libellé d’objectif pour préremplir le formulaire.
-- Référentiels administrables pour les marques, les montures et les options.
+- Référentiels administrables pour les marques, les montures et les options, ces dernières étant liées à une marque spécifique.
 - Relation 1-N entre une marque et les objectifs, et entre une monture et les objectifs.
 - Options associées aux objectifs en N-N avec un code court et une description.
 - Tableau desktop et cartes mobile avec type `Fixe`/`Zoom` et plages identiques compactées (`7.8 mm`, `f/4`).
@@ -20,7 +20,7 @@ Application privée Next.js pour inventorier, filtrer, visualiser et comparer de
 - Graphique SVG interactif focale/ouverture avec zoom molette, pan tactile, sélection et masquage d’objectifs.
 - Comparaison de 2 à 5 objectifs avec différences en gras.
 - Navigation multi-pages avec barre de navigation : Objectifs, Boîtiers, Accessoires, Paramètres.
-- Pages paramètres séparées pour les marques, les montures et les options.
+- Pages paramètres séparées pour les marques, les montures, les options et les groupes d’options.
 - Pages « Boîtiers » et « Accessoires » préparées pour un futur inventaire.
 - Tests Vitest pour la validation et les helpers métier.
 
@@ -118,6 +118,21 @@ Ce comportement simplifie la saisie :
 
 Exemple pour un objectif `50 mm f/1.8` : renseignez `Ouverture max à min focale` avec `1.8` ou `1,8`, puis laissez `Ouverture max à max focale` vide.
 
+### Détection des doublons
+
+Lorsque vous enregistrez un objectif, l’application vérifie qu’aucun objectif existant ne possède la même combinaison des six champs suivants :
+
+- Marque
+- Monture
+- Focale min
+- Focale max
+- Ouverture max à min focale
+- Ouverture max à max focale
+
+Si un doublon est détecté, le formulaire reste ouvert et un message d’erreur s’affiche en haut de la fenêtre avec le libellé de l’objectif existant. Vous pouvez modifier les champs en conflit ou annuler la création.
+
+Cette vérification s’applique aussi lors de la modification d’un objectif : le système exclut l’objectif en cours de modification de la recherche, ce qui permet de sauvegarder sans conflit si seules des champs hors des six critères changent.
+
 ## Scripts
 
 | Commande | Rôle |
@@ -132,7 +147,7 @@ Exemple pour un objectif `50 mm f/1.8` : renseignez `Ouverture max à min focale
 
 ## Tests
 
-Les tests utilisent Vitest avec l’environnement Node. La suite contient actuellement 80 tests.
+Les tests utilisent Vitest avec l’environnement Node. La suite contient actuellement 185 tests.
 
 ```bash
 npm run test
@@ -141,13 +156,15 @@ npm run test
 La suite couvre actuellement :
 
 - la validation des objectifs avec Zod ;
-- la validation des référentiels de marques, montures et options ;
+- la validation des référentiels de marques, montures, options et groupes d’options ;
 - la coercition des valeurs numériques et booléennes issues des formulaires ;
 - les règles métier sur les focales et ouvertures ;
 - la génération de libellés ;
-- le parsing des libellés collés dans le formulaire ;
+- le parsing des libellés collés dans le formulaire (filtrage des options par marque identifiée) ;
 - le calcul des équivalents APS-C ;
-- les helpers de formatage.
+- les helpers de formatage ;
+- les groupes d’options (CRUD, assignation, affichage dans le comparateur) ;
+- le filtrage des options par marque dans les formulaires et le gestionnaire de paramètres.
 
 Avant un déploiement, exécutez au minimum :
 
@@ -210,18 +227,21 @@ Les marques, les montures et les options ne sont plus des champs libres saisis d
 |---|---|---|
 | Marques | `name` | Une marque peut être liée à plusieurs objectifs. Chaque objectif référence une seule marque. |
 | Montures | `name`, `sensorType` | Une monture peut être liée à plusieurs objectifs. Chaque objectif référence une seule monture. Le type de capteur est porté par la monture. |
-| Options | `code`, `description` | Une option peut être liée à plusieurs objectifs. Un objectif peut avoir plusieurs options. |
+| Options | `code`, `description`, `brandId` | Une option est liée à une seule marque. Elle peut être associée à plusieurs objectifs de cette marque. Un objectif peut avoir plusieurs options. |
 
-Les données par défaut ajoutent la marque `Canon`, les montures `Canon RF`, `Canon RF-S`, `Canon EF` et `Canon EF-S`, ainsi que les options `L`, `IS`, `USM` et `STM`.
+Les données par défaut ajoutent la marque `Canon`, les montures `Canon RF`, `Canon RF-S`, `Canon EF` et `Canon EF-S`, ainsi que les options `L`, `IS`, `USM` et `STM` liées à Canon. Trois groupes d’options sont également créés : Stabilisation (type *flag*), Motorisation (type *value*) et Série (type *value*), avec les options Canon assignées aux groupes correspondants.
 
 Le schéma suivant montre les relations principales entre les objectifs et les référentiels.
 
 ```mermaid
 erDiagram
     BRANDS ||--o{ LENSES : reference
+    BRANDS ||--o{ LENS_OPTIONS : owns
     MOUNTS ||--o{ LENSES : reference
     LENSES ||--o{ LENS_OPTION_LINKS : has
     LENS_OPTIONS ||--o{ LENS_OPTION_LINKS : reference
+    OPTION_GROUPS ||--o{ OPTION_GROUP_MEMBERS : contains
+    LENS_OPTIONS ||--o{ OPTION_GROUP_MEMBERS : member_of
 
     BRANDS {
         text id PK
@@ -234,8 +254,9 @@ erDiagram
     }
     LENS_OPTIONS {
         text id PK
-        text code UK
+        text code
         text description
+        text brandId FK
     }
     LENSES {
         text id PK
@@ -247,8 +268,18 @@ erDiagram
         text lensId FK
         text optionId FK
     }
+    OPTION_GROUPS {
+        text id PK
+        text slug UK
+        text name
+        text type
+    }
+    OPTION_GROUP_MEMBERS {
+        text groupId FK
+        text optionId FK
+    }
 ```
-*Figure: Relations entre objectifs, marques, montures et options.*
+*Figure: Relations entre objectifs, marques, montures, options et groupes d’options.*
 
 ### Contraintes de suppression
 
@@ -257,6 +288,7 @@ SQLite protège les référentiels utilisés par des objectifs.
 - Vous ne pouvez pas supprimer une marque si au moins un objectif l’utilise.
 - Vous ne pouvez pas supprimer une monture si au moins un objectif l’utilise.
 - Vous ne pouvez pas supprimer une option si au moins un objectif l’utilise.
+- Vous ne pouvez pas supprimer un groupe d’options si au moins une option y est assignée. Retirez d’abord les options du groupe depuis la page de gestion.
 - Vous pouvez supprimer un objectif sans supprimer ses référentiels. Les liens vers ses options sont supprimés automatiquement.
 
 Pour supprimer une entrée de référentiel, modifiez ou supprimez d’abord les objectifs qui la référencent.
@@ -269,6 +301,8 @@ Une migration legacy convertit automatiquement les anciennes colonnes libres `br
 - Le type de capteur existant est déplacé sur la monture.
 - Les anciennes options séparées par espaces deviennent des options avec un `code` et une `description` identiques.
 - Les objectifs migrés référencent ensuite les nouveaux identifiants de marque, monture et options.
+
+Une migration ultérieure ajoute la colonne `brandId` à la table `lens_options` et impose la contrainte `UNIQUE(code, brandId)`. Les options orphelines (sans marque) sont automatiquement liées à la marque « Autre » créée lors de la migration. La table `lens_option_links` est également recréée si sa clé étrangère pointe encore vers une table legacy `lenses_legacy_*`.
 
 Avant de lancer une version contenant cette migration sur une base existante, créez une sauvegarde du fichier SQLite.
 

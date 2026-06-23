@@ -5,9 +5,11 @@ import {
   brandSchema,
   mountSchema,
   optionSchema,
+  optionGroupSchema,
   parseBrandFormData,
   parseMountFormData,
-  parseOptionFormData
+  parseOptionFormData,
+  parseOptionGroupFormData
 } from "../../../src/lib/validation/reference";
 
 describe("reference validation", () => {
@@ -70,9 +72,10 @@ describe("reference validation", () => {
    * Verifies that option data is trimmed when input is valid
    */
   test("optionSchema trims valid option fields", () => {
-    expect(optionSchema.parse({ code: "  IS  ", description: "  Stabilisation optique  " })).toEqual({
+    expect(optionSchema.parse({ code: "  IS  ", description: "  Stabilisation optique  ", brandId: "11111111-1111-4111-8111-111111111111" })).toEqual({
       code: "IS",
-      description: "Stabilisation optique"
+      description: "Stabilisation optique",
+      brandId: "11111111-1111-4111-8111-111111111111"
     });
   });
 
@@ -80,22 +83,22 @@ describe("reference validation", () => {
    * Verifies that blank option codes are rejected
    */
   test("optionSchema rejects blank option codes", () => {
-    expect(() => optionSchema.parse({ code: "   ", description: "Stabilisation optique" })).toThrow(ZodError);
+    expect(() => optionSchema.parse({ code: "   ", description: "Stabilisation optique", brandId: "11111111-1111-4111-8111-111111111111" })).toThrow(ZodError);
   });
 
   /**
    * Verifies that blank option descriptions are rejected
    */
   test("optionSchema rejects blank option descriptions", () => {
-    expect(() => optionSchema.parse({ code: "IS", description: "   " })).toThrow(ZodError);
+    expect(() => optionSchema.parse({ code: "IS", description: "   ", brandId: "11111111-1111-4111-8111-111111111111" })).toThrow(ZodError);
   });
 
   /**
    * Verifies that overlong option fields are rejected
    */
   test("optionSchema rejects option fields longer than maximum", () => {
-    expect(() => optionSchema.parse({ code: "a".repeat(21), description: "Valid" })).toThrow(ZodError);
-    expect(() => optionSchema.parse({ code: "IS", description: "a".repeat(161) })).toThrow(ZodError);
+    expect(() => optionSchema.parse({ code: "a".repeat(21), description: "Valid", brandId: "11111111-1111-4111-8111-111111111111" })).toThrow(ZodError);
+    expect(() => optionSchema.parse({ code: "IS", description: "a".repeat(161), brandId: "11111111-1111-4111-8111-111111111111" })).toThrow(ZodError);
   });
 
   /**
@@ -126,10 +129,103 @@ describe("reference validation", () => {
     const formData = new FormData();
     formData.set("code", "  USM  ");
     formData.set("description", "  Motorisation ultrasonique  ");
+    formData.set("brandId", "11111111-1111-4111-8111-111111111111");
 
     expect(parseOptionFormData(formData)).toEqual({
       code: "USM",
-      description: "Motorisation ultrasonique"
+      description: "Motorisation ultrasonique",
+      brandId: "11111111-1111-4111-8111-111111111111"
+    });
+  });
+
+  // -----------------------------------------------------------------------
+  // optionGroupSchema
+  // -----------------------------------------------------------------------
+
+  /**
+   * Verifies that option group schema trims valid slug and name fields
+   */
+  test("optionGroupSchema trims valid option group fields", () => {
+    expect(optionGroupSchema.parse({ slug: "  stabilization  ", name: "  Stabilisation  ", type: "flag" })).toEqual({
+      slug: "stabilization",
+      name: "Stabilisation",
+      type: "flag"
+    });
+  });
+
+  /**
+   * Verifies that blank option group slugs are rejected after trimming
+   */
+  test("optionGroupSchema rejects blank slug", () => {
+    expect(() => optionGroupSchema.parse({ slug: "   ", name: "Stabilisation", type: "flag" })).toThrow(ZodError);
+  });
+
+  /**
+   * Verifies that blank option group names are rejected after trimming
+   */
+  test("optionGroupSchema rejects blank name", () => {
+    expect(() => optionGroupSchema.parse({ slug: "stabilization", name: "   ", type: "flag" })).toThrow(ZodError);
+  });
+
+  /**
+   * Verifies that overlong option group fields are rejected
+   */
+  test("optionGroupSchema rejects fields longer than maximum", () => {
+    expect(() => optionGroupSchema.parse({ slug: "a".repeat(41), name: "Valid", type: "flag" })).toThrow(ZodError);
+    expect(() => optionGroupSchema.parse({ slug: "valid", name: "a".repeat(81), type: "flag" })).toThrow(ZodError);
+  });
+
+  /**
+   * Verifies that option group schema accepts value type
+   */
+  test("optionGroupSchema accepts value type", () => {
+    expect(optionGroupSchema.parse({ slug: "motor", name: "Motorisation", type: "value" })).toEqual({
+      slug: "motor",
+      name: "Motorisation",
+      type: "value"
+    });
+  });
+
+  /**
+   * Verifies that option group schema rejects unknown type
+   */
+  test("optionGroupSchema rejects unknown type", () => {
+    expect(() => optionGroupSchema.parse({ slug: "test", name: "Test", type: "boolean" })).toThrow(ZodError);
+  });
+
+  // -----------------------------------------------------------------------
+  // parseOptionGroupFormData
+  // -----------------------------------------------------------------------
+
+  /**
+   * Verifies that parseOptionGroupFormData parses valid form values
+   */
+  test("parseOptionGroupFormData parses valid form values", () => {
+    const formData = new FormData();
+    formData.set("slug", "  stabilization  ");
+    formData.set("name", "  Stabilisation  ");
+    formData.set("type", "flag");
+
+    expect(parseOptionGroupFormData(formData)).toEqual({
+      slug: "stabilization",
+      name: "Stabilisation",
+      type: "flag"
+    });
+  });
+
+  /**
+   * Verifies that parseOptionGroupFormData accepts value type
+   */
+  test("parseOptionGroupFormData parses value type group", () => {
+    const formData = new FormData();
+    formData.set("slug", "motor");
+    formData.set("name", "Motorisation");
+    formData.set("type", "value");
+
+    expect(parseOptionGroupFormData(formData)).toEqual({
+      slug: "motor",
+      name: "Motorisation",
+      type: "value"
     });
   });
 });

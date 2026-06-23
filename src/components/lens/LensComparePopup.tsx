@@ -1,15 +1,17 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import type { Lens } from "@/lib/lens/types";
+import type { Lens, OptionGroup, OptionGroupMember } from "@/lib/lens/types";
 import { LensCompareTable } from "@/components/lens/LensCompareTable";
 
 interface LensComparePopupProps {
   lenses: Lens[];
   onClear: () => void;
+  optionGroups?: OptionGroup[];
+  optionGroupMembers?: OptionGroupMember[];
 }
 
-export function LensComparePopup({ lenses, onClear }: LensComparePopupProps) {
+export function LensComparePopup({ lenses, onClear, optionGroups, optionGroupMembers }: LensComparePopupProps) {
   const [isOpen, setIsOpen] = useState(false);
   const comparerBtnRef = useRef<HTMLButtonElement>(null);
   const fermerBtnRef = useRef<HTMLButtonElement>(null);
@@ -83,7 +85,7 @@ export function LensComparePopup({ lenses, onClear }: LensComparePopupProps) {
                 Fermer
               </button>
             </div>
-            <LensCompareTable lenses={lenses} />
+            <LensCompareTable lenses={lenses} optionGroups={optionGroups} optionGroupMembers={optionGroupMembers} />
           </div>
         </div>
       )}

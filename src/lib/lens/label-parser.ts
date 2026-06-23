@@ -41,7 +41,11 @@ export function parseLensLabel(label: string, referenceData: LensReferenceData):
     if (typeof focalMax === "number") parsed.focalMaxMm = focalMax;
   }
 
-  const optionIds = findOptionIds(normalizedLabel, referenceData.options.map((item) => ({ id: item.id, name: item.code })));
+  // Only search options that belong to the identified brand (if found)
+  const optionsForBrand = parsed.brandId
+    ? referenceData.options.filter((o) => o.brandId === parsed.brandId)
+    : referenceData.options;
+  const optionIds = findOptionIds(normalizedLabel, optionsForBrand.map((item) => ({ id: item.id, name: item.code })));
   if (optionIds.length > 0) parsed.optionIds = optionIds;
 
   return parsed;

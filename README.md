@@ -1,6 +1,6 @@
 # PhotoPark
 
-Application privée Next.js pour inventorier, filtrer, visualiser et comparer des objectifs photo.
+Application privée Next.js pour inventorier, filtrer, visualiser et comparer du matériel photo, avec modules dédiés pour les objectifs et les accessoires photo.
 
 ## Fonctionnalités
 
@@ -11,17 +11,22 @@ Application privée Next.js pour inventorier, filtrer, visualiser et comparer de
 - Protection d’origine sur les actions mutatives.
 - Stockage SQLite local avec `better-sqlite3`.
 - CRUD complet des objectifs, avec statut `Retiré`.
+- Module d’inventaire `Accessoires` pour les sacs et poches photo.
+- CRUD complet des accessoires avec fiche détail, filtres dédiés et types d’accessoires administrables.
 - Import client depuis un libellé d’objectif pour préremplir le formulaire.
-- Référentiels administrables pour les marques, les montures et les options, ces dernières étant liées à une marque spécifique.
+- Référentiels administrables pour les marques, les montures, les options et les types d’accessoires.
+- Les marques sont partagées entre objectifs et accessoires, avec assignation par domaine (`lenses`, `accessories`).
 - Relation 1-N entre une marque et les objectifs, et entre une monture et les objectifs.
 - Options associées aux objectifs en N-N avec un code court et une description.
+- Inventaire accessoires en tableau desktop et cartes mobile, avec badges de statut, formatage cohérent du prix et du poids, et valeur `0` toujours affichée.
 - Tableau desktop et cartes mobile avec type `Fixe`/`Zoom`, plages identiques compactées (`7.8 mm`, `f/4`), badges de statut dont `Retiré`, prix formatés avec espaces pour les milliers et toujours 2 décimales (`3 314.00 €`), et poids formatés avec espaces pour les milliers (`1 079 g`).
 - Filtres par texte, marque, monture, option, type (`Tous`, `Fixe`, `Zoom`), statut et quatre plages numériques réglables par curseurs à double poignée (focale min 0–300 mm, focale max 0–300+ mm, ouverture à focale min f/1–f/30, ouverture à focale max f/1–f/30). Les deux plages de focale démarrent sur `0–300+ mm`. La borne haute `300` est ouverte et signifie `300 mm et plus`.
+- Filtres accessoires par texte, marque, type, statut, compatibilité ordinateur et compatibilité trépied.
 - Graphique SVG interactif focale/ouverture disposé en mise en page deux colonnes (4/5 graphique, 1/5 liste à cocher) avec zoom molette, pan tactile, sélection et masquage d’objectifs. À l’ouverture, il coche automatiquement les objectifs possédés et non retirés.
 - Comparaison de 2 à 5 objectifs avec différences en gras.
 - Navigation multi-pages avec barre de navigation : Objectifs, Boîtiers, Accessoires, Paramètres.
-- Pages paramètres séparées pour les marques, les montures, les options et les groupes d’options.
-- Pages « Boîtiers » et « Accessoires » préparées pour un futur inventaire.
+- Pages paramètres séparées pour les marques, les montures, les options, les groupes d’options et les types d’accessoires.
+- La page `Boîtiers` reste un placeholder pour un futur inventaire.
 - Tests Vitest pour la validation et les helpers métier.
 
 Le schéma suivant résume le flux principal de l’application.
@@ -35,8 +40,10 @@ flowchart LR
     CRUD --> SQLite[(SQLite local)]
     App --> Chart[Graphique SVG interactif]
     App --> Compare[Comparaison 2 à 5]
+    App --> Accessories[Inventaire accessoires]
+    Accessories --> AccessorySettings[Types d'accessoires]
 ```
-*Figure: Flux entre authentification, inventaire, stockage SQLite et vues de visualisation.*
+*Figure: Flux entre authentification, inventaires objectifs/accessoires, stockage SQLite et vues de visualisation.*
 
 ## Prérequis
 
@@ -155,6 +162,40 @@ Si votre base contient déjà un doublon historique identique, vous pouvez aussi
 
 En revanche, si la modification change ces champs d’identité et entre en collision avec un autre objectif existant, l’enregistrement reste refusé.
 
+## Inventaire des accessoires
+
+La page `/accessories` gère l’inventaire des sacs et poches photo.
+
+Elle propose :
+
+- une liste en tableau sur desktop ;
+- des cartes sur mobile ;
+- des filtres par texte, marque, type, statut, compatibilité ordinateur portable et compatibilité trépied ;
+- une fenêtre de détail ;
+- des modales de création, modification et suppression.
+
+Chaque accessoire peut contenir notamment :
+
+- une marque ;
+- un type d’accessoire ;
+- un nom ou libellé généré ;
+- une capacité en litres, boîtiers et objectifs ;
+- des indicateurs `ordinateur portable` et `trépied` ;
+- des dimensions, un poids, un prix et des notes.
+
+Les types d’accessoires se gèrent dans `Paramètres > Types d’accessoires`.
+
+## Marques partagées par domaine
+
+Les marques sont communes aux modules objectifs et accessoires.
+
+Chaque marque peut être assignée à un ou plusieurs domaines :
+
+- `lenses` pour les objectifs ;
+- `accessories` pour les accessoires.
+
+Les formulaires et filtres n’affichent que les marques valides pour le domaine courant. Par exemple, un formulaire accessoire ne propose pas une marque limitée aux objectifs.
+
 ## Scripts
 
 | Commande | Rôle |
@@ -245,31 +286,39 @@ Le dépôt ignore déjà les fichiers SQLite, le dossier `data/`, `.env` et les 
 
 ### Référentiels
 
-Les marques, les montures et les options ne sont plus des champs libres saisis directement dans chaque objectif. L’application les stocke dans des listes administrables accessibles depuis la barre de navigation via Paramètres > Marques, Paramètres > Montures et Paramètres > Options.
+Les marques, les montures, les options et les types d’accessoires ne sont plus des champs libres saisis directement dans les formulaires concernés. L’application les stocke dans des listes administrables accessibles depuis la barre de navigation via Paramètres.
 
 | Référentiel | Champs | Utilisation |
 |---|---|---|
-| Marques | `name` | Une marque peut être liée à plusieurs objectifs. Chaque objectif référence une seule marque. |
+| Marques | `name`, domaines | Une marque peut être liée à plusieurs objectifs et/ou accessoires selon ses domaines autorisés. |
 | Montures | `name`, `sensorType` | Une monture peut être liée à plusieurs objectifs. Chaque objectif référence une seule monture. Le type de capteur est porté par la monture. |
 | Options | `code`, `description`, `brandId` | Une option est liée à une seule marque. Elle peut être associée à plusieurs objectifs de cette marque. Un objectif peut avoir plusieurs options. |
+| Types d’accessoires | `name` | Un type peut être lié à plusieurs accessoires. Chaque accessoire référence un seul type. |
 
-Les données par défaut ajoutent la marque `Canon`, les montures `Canon RF`, `Canon RF-S`, `Canon EF` et `Canon EF-S`, ainsi que les options `L`, `IS`, `USM` et `STM` liées à Canon. Trois groupes d’options sont également créés : Stabilisation (type *flag*), Motorisation (type *value*) et Série (type *value*), avec les options Canon assignées aux groupes correspondants.
+Les données par défaut ajoutent la marque `Canon`, les montures `Canon RF`, `Canon RF-S`, `Canon EF` et `Canon EF-S`, ainsi que les options `L`, `IS`, `USM` et `STM` liées à Canon. Trois groupes d’options sont également créés : Stabilisation (type *flag*), Motorisation (type *value*) et Série (type *value*), avec les options Canon assignées aux groupes correspondants. L’initialisation crée aussi les types d’accessoires de base `Sac à dos`, `Bandoulière`, `Poche` et `Ceinture`.
 
-Le schéma suivant montre les relations principales entre les objectifs et les référentiels.
+Le schéma suivant montre les relations principales entre les inventaires et les référentiels.
 
 ```mermaid
 erDiagram
     BRANDS ||--o{ LENSES : reference
+    BRANDS ||--o{ BRAND_DOMAINS : scoped_by
     BRANDS ||--o{ LENS_OPTIONS : owns
+    BRANDS ||--o{ ACCESSORIES : reference
     MOUNTS ||--o{ LENSES : reference
     LENSES ||--o{ LENS_OPTION_LINKS : has
     LENS_OPTIONS ||--o{ LENS_OPTION_LINKS : reference
     OPTION_GROUPS ||--o{ OPTION_GROUP_MEMBERS : contains
     LENS_OPTIONS ||--o{ OPTION_GROUP_MEMBERS : member_of
+    ACCESSORY_TYPES ||--o{ ACCESSORIES : typed_as
 
     BRANDS {
         text id PK
         text name UK
+    }
+    BRAND_DOMAINS {
+        text brandId FK
+        text domain
     }
     MOUNTS {
         text id PK
@@ -302,18 +351,32 @@ erDiagram
         text groupId FK
         text optionId FK
     }
+    ACCESSORY_TYPES {
+        text id PK
+        text name UK
+    }
+    ACCESSORIES {
+        text id PK
+        text brandId FK
+        text typeId FK
+        text label
+    }
 ```
-*Figure: Relations entre objectifs, marques, montures, options et groupes d’options.*
+*Figure: Relations entre objectifs, accessoires, marques partagées, options et types d’accessoires.*
 
 ### Contraintes de suppression
 
 SQLite protège les référentiels utilisés par des objectifs.
 
 - Vous ne pouvez pas supprimer une marque si au moins un objectif l’utilise.
+- Vous ne pouvez pas supprimer une marque si au moins un accessoire l’utilise.
+- Vous ne pouvez pas retirer un domaine d’une marque si des éléments existants l’utilisent encore dans ce domaine.
 - Vous ne pouvez pas supprimer une monture si au moins un objectif l’utilise.
 - Vous ne pouvez pas supprimer une option si au moins un objectif l’utilise.
 - Vous ne pouvez pas supprimer un groupe d’options si au moins une option y est assignée. Retirez d’abord les options du groupe depuis la page de gestion.
+- Vous ne pouvez pas supprimer un type d’accessoire si au moins un accessoire l’utilise.
 - Vous pouvez supprimer un objectif sans supprimer ses référentiels. Les liens vers ses options sont supprimés automatiquement.
+- Vous pouvez supprimer un accessoire sans supprimer ses référentiels.
 
 Pour supprimer une entrée de référentiel, modifiez ou supprimez d’abord les objectifs qui la référencent.
 
@@ -329,6 +392,8 @@ Une migration legacy convertit automatiquement les anciennes colonnes libres `br
 Une migration ultérieure ajoute la colonne `brandId` à la table `lens_options` et impose la contrainte `UNIQUE(code, brandId)`. Les options orphelines (sans marque) sont automatiquement liées à la marque « Autre » créée lors de la migration. La table `lens_option_links` est également recréée si sa clé étrangère pointe encore vers une table legacy `lenses_legacy_*`.
 
 Au démarrage, l’application répare aussi automatiquement les bases SQLite existantes si la table `lenses` ne contient pas encore les colonnes `minApertureAtMinFocal`, `minApertureAtMaxFocal` ou `retired`.
+
+Le schéma courant ajoute aussi la table `brand_domains` pour filtrer les marques par domaine et les tables `accessory_types` / `accessories` pour l’inventaire des sacs et poches.
 
 Avant de lancer une version contenant cette migration sur une base existante, créez une sauvegarde du fichier SQLite.
 

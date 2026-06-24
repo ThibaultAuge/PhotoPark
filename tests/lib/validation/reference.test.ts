@@ -17,21 +17,35 @@ describe("reference validation", () => {
    * Verifies that brand names are trimmed when input is valid
    */
   test("brandSchema trims valid brand names", () => {
-    expect(brandSchema.parse({ name: "  Canon  " })).toEqual({ name: "Canon" });
+    expect(brandSchema.parse({ name: "  Canon  ", domains: ["lenses"] })).toEqual({ name: "Canon", domains: ["lenses"] });
   });
 
   /**
    * Verifies that empty brand names are rejected after trimming
    */
   test("brandSchema rejects blank brand names", () => {
-    expect(() => brandSchema.parse({ name: "   " })).toThrow(ZodError);
+    expect(() => brandSchema.parse({ name: "   ", domains: ["lenses"] })).toThrow(ZodError);
   });
 
   /**
    * Verifies that overlong brand names are rejected
    */
   test("brandSchema rejects brand names longer than maximum", () => {
-    expect(() => brandSchema.parse({ name: "a".repeat(81) })).toThrow(ZodError);
+    expect(() => brandSchema.parse({ name: "a".repeat(81), domains: ["lenses"] })).toThrow(ZodError);
+  });
+
+  /**
+   * Verifies that at least one brand domain is required
+   */
+  test("brandSchema requires at least one domain", () => {
+    expect(() => brandSchema.parse({ name: "Canon", domains: [] })).toThrow(ZodError);
+  });
+
+  /**
+   * Verifies that unknown brand domains are rejected by the schema
+   */
+  test("brandSchema rejects unknown brand domains", () => {
+    expect(() => brandSchema.parse({ name: "Canon", domains: ["bags"] })).toThrow(ZodError);
   });
 
   /**
@@ -107,8 +121,31 @@ describe("reference validation", () => {
   test("parseBrandFormData parses valid brand form values", () => {
     const formData = new FormData();
     formData.set("name", "  Nikon  ");
+    formData.append("domains", "lenses");
+    formData.append("domains", "accessories");
 
-    expect(parseBrandFormData(formData)).toEqual({ name: "Nikon" });
+    expect(parseBrandFormData(formData)).toEqual({ name: "Nikon", domains: ["lenses", "accessories"] });
+  });
+
+  /**
+   * Verifies that brand form data rejects submissions without any domain
+   */
+  test("parseBrandFormData rejects missing brand domains", () => {
+    const formData = new FormData();
+    formData.set("name", "Nikon");
+
+    expect(() => parseBrandFormData(formData)).toThrow(ZodError);
+  });
+
+  /**
+   * Verifies that brand form data rejects unsupported domain values
+   */
+  test("parseBrandFormData rejects unknown brand domains", () => {
+    const formData = new FormData();
+    formData.set("name", "Nikon");
+    formData.append("domains", "bags");
+
+    expect(() => parseBrandFormData(formData)).toThrow(ZodError);
   });
 
   /**

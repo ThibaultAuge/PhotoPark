@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import type { LensBrand } from "@/lib/lens/types";
+import type { BrandDomain, LensBrand } from "@/lib/lens/types";
 import { createBrandAction, updateBrandAction, deleteBrandAction } from "@/app/actions/lens-actions";
 
 export function BrandManager({ brands }: { brands: LensBrand[] }) {
@@ -28,6 +28,8 @@ export function BrandManager({ brands }: { brands: LensBrand[] }) {
         {error ? <p className="form-error" role="alert">{error}</p> : null}
         <form ref={formRef} action={handleAdd} className="inline-form">
           <input name="name" placeholder="Nouvelle marque" required />
+          <label className="inline-checkbox"><input name="domains" type="checkbox" value="lenses" defaultChecked /> Objectifs</label>
+          <label className="inline-checkbox"><input name="domains" type="checkbox" value="accessories" /> Accessoires</label>
           <button className="primary-button" type="submit">Ajouter</button>
         </form>
       </div>
@@ -40,6 +42,8 @@ export function BrandManager({ brands }: { brands: LensBrand[] }) {
             {brands.map((brand) => (
               <form key={brand.id} action={updateBrandAction.bind(null, brand.id)} className="inline-form">
                 <input name="name" defaultValue={brand.name} required />
+                <label className="inline-checkbox"><input name="domains" type="checkbox" value="lenses" defaultChecked={hasDomain(brand.domains, "lenses")} /> Objectifs</label>
+                <label className="inline-checkbox"><input name="domains" type="checkbox" value="accessories" defaultChecked={hasDomain(brand.domains, "accessories")} /> Accessoires</label>
                 <button className="ghost-button" type="submit">OK</button>
                 <button formAction={deleteBrandAction.bind(null, brand.id)} className="danger-button" type="submit">Supprimer</button>
               </form>
@@ -49,4 +53,8 @@ export function BrandManager({ brands }: { brands: LensBrand[] }) {
       </div>
     </div>
   );
+}
+
+function hasDomain(domains: BrandDomain[] | undefined, domain: BrandDomain) {
+  return domains?.includes(domain) ?? false;
 }

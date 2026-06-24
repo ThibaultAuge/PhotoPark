@@ -2,12 +2,12 @@ import Database from "better-sqlite3";
 import { mkdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { randomUUID } from "node:crypto";
-import type { Lens, LensBrand, LensInput, LensMount, LensOption, LensReferenceData, OptionGroup, OptionGroupMember, SensorType } from "@/lib/lens/types";
+import type { BrandDomain, Lens, LensBrand, LensInput, LensMount, LensOption, LensReferenceData, OptionGroup, OptionGroupMember, SensorType } from "@/lib/lens/types";
 import { normalizeLensInput } from "@/lib/lens/lens-utils";
 
 let db: Database.Database | null = null;
 
-function getDatabase() {
+export function getDatabase() {
   if (db) return db;
   const dbPath = resolve(process.env.DATABASE_PATH ?? "./data/photos.sqlite");
   mkdirSync(dirname(dbPath), { recursive: true });
@@ -16,6 +16,7 @@ function getDatabase() {
   db.pragma("foreign_keys = ON");
   initializeSchema(db);
   seedReferenceData(db);
+  db.prepare("INSERT OR IGNORE INTO brand_domains (brandId, domain) SELECT id, 'lenses' FROM brands").run();
   return db;
 }
 
@@ -23,6 +24,11 @@ function initializeSchema(database: Database.Database) {
   database.exec(`
     CREATE TABLE IF NOT EXISTS brands (id TEXT PRIMARY KEY, name TEXT NOT NULL UNIQUE COLLATE NOCASE, createdAt TEXT NOT NULL, updatedAt TEXT NOT NULL);
     CREATE TABLE IF NOT EXISTS mounts (id TEXT PRIMARY KEY, name TEXT NOT NULL UNIQUE COLLATE NOCASE, sensorType TEXT NOT NULL CHECK(sensorType IN ('FULL_FRAME', 'APS_C')), createdAt TEXT NOT NULL, updatedAt TEXT NOT NULL);
+    CREATE TABLE IF NOT EXISTS brand_domains (
+      brandId TEXT NOT NULL REFERENCES brands(id) ON DELETE CASCADE,
+      domain TEXT NOT NULL CHECK(domain IN ('lenses', 'accessories')),
+      PRIMARY KEY (brandId, domain)
+    );
   `);
 
   migrateLegacyLensOptions(database);
@@ -90,11 +96,13 @@ function initializeSchema(database: Database.Database) {
     );
   `);
   ensureLensColumns(database);
+  database.prepare("INSERT OR IGNORE INTO brand_domains (brandId, domain) SELECT id, 'lenses' FROM brands").run();
   database.exec(`
     CREATE INDEX IF NOT EXISTS idx_lenses_brand ON lenses(brandId);
     CREATE INDEX IF NOT EXISTS idx_lenses_mount ON lenses(mountId);
     CREATE INDEX IF NOT EXISTS idx_lenses_status ON lenses(isFavorite, isNextPurchase, isOwned);
     CREATE INDEX IF NOT EXISTS idx_lens_options_brand ON lens_options(brandId);
+    CREATE INDEX IF NOT EXISTS idx_brand_domains_domain ON brand_domains(domain);
   `);
   repairLensOptionLinksSchema(database);
 }
@@ -351,12 +359,35 @@ function seedReferenceData(database: Database.Database) {
 export function listReferenceData(): LensReferenceData {
   const database = getDatabase();
   return {
-    brands: database.prepare("SELECT id, name FROM brands ORDER BY name COLLATE NOCASE").all() as LensBrand[],
+    brands: listBrandsByDomain("lenses"),
     mounts: database.prepare("SELECT id, name, sensorType FROM mounts ORDER BY name COLLATE NOCASE").all() as LensMount[],
     options: database.prepare("SELECT id, code, description, brandId FROM lens_options ORDER BY code COLLATE NOCASE").all() as LensOption[],
     optionGroups: database.prepare("SELECT id, slug, name, type FROM option_groups ORDER BY slug COLLATE NOCASE").all() as OptionGroup[],
     optionGroupMembers: database.prepare("SELECT optionId, groupId FROM option_group_members").all() as OptionGroupMember[]
   };
+}
+
+export function listBrandsByDomain(domain: BrandDomain): LensBrand[] {
+  const database = getDatabase();
+  const brands = database.prepare(`SELECT brands.id, brands.name
+    FROM brands
+    JOIN brand_domains ON brand_domains.brandId = brands.id
+    WHERE brand_domains.domain = ?
+    ORDER BY brands.name COLLATE NOCASE`).all(domain) as Array<{ id: string; name: string }>;
+  return brands.map((brand) => ({ ...brand, domains: [domain] }));
+}
+
+export function listBrandsWithDomains(): LensBrand[] {
+  const database = getDatabase();
+  const brands = database.prepare("SELECT id, name FROM brands ORDER BY name COLLATE NOCASE").all() as Array<{ id: string; name: string }>;
+  const rows = database.prepare("SELECT brandId, domain FROM brand_domains ORDER BY domain COLLATE NOCASE").all() as Array<{ brandId: string; domain: BrandDomain }>;
+  const domainsByBrandId = new Map<string, BrandDomain[]>();
+  for (const row of rows) {
+    const domains = domainsByBrandId.get(row.brandId) ?? [];
+    domains.push(row.domain);
+    domainsByBrandId.set(row.brandId, domains);
+  }
+  return brands.map((brand) => ({ ...brand, domains: domainsByBrandId.get(brand.id) ?? [] }));
 }
 
 export function listOptionsByBrand(brandId: string): LensOption[] {
@@ -475,13 +506,25 @@ export function deleteLens(id: string) {
   getDatabase().prepare("DELETE FROM lenses WHERE id = ?").run(id);
 }
 
-export function createBrand(name: string) {
+export function createBrand(name: string, domains: BrandDomain[] = ["lenses"]) {
   const now = new Date().toISOString();
-  getDatabase().prepare("INSERT INTO brands (id, name, createdAt, updatedAt) VALUES (?, ?, ?, ?)").run(randomUUID(), name.trim(), now, now);
+  const database = getDatabase();
+  const id = randomUUID();
+  const transaction = database.transaction(() => {
+    database.prepare("INSERT INTO brands (id, name, createdAt, updatedAt) VALUES (?, ?, ?, ?)").run(id, name.trim(), now, now);
+    replaceBrandDomains(database, id, domains);
+  });
+  transaction();
 }
 
-export function updateBrand(id: string, name: string) {
-  getDatabase().prepare("UPDATE brands SET name = ?, updatedAt = ? WHERE id = ?").run(name.trim(), new Date().toISOString(), id);
+export function updateBrand(id: string, name: string, domains: BrandDomain[] = ["lenses"]) {
+  const database = getDatabase();
+  const transaction = database.transaction(() => {
+    assertBrandDomainCompatibility(database, id, domains);
+    database.prepare("UPDATE brands SET name = ?, updatedAt = ? WHERE id = ?").run(name.trim(), new Date().toISOString(), id);
+    replaceBrandDomains(database, id, domains);
+  });
+  transaction();
   refreshLabels();
 }
 
@@ -567,6 +610,8 @@ function resolveLensRefs(database: Database.Database, input: LensInput) {
   const brand = database.prepare("SELECT id, name FROM brands WHERE id = ?").get(input.brandId) as LensBrand | undefined;
   const mount = database.prepare("SELECT id, name, sensorType FROM mounts WHERE id = ?").get(input.mountId) as LensMount | undefined;
   if (!brand || !mount) throw new Error("Marque ou monture inconnue.");
+  const brandInLensDomain = database.prepare("SELECT 1 FROM brand_domains WHERE brandId = ? AND domain = 'lenses'").get(input.brandId);
+  if (!brandInLensDomain) throw new Error("Cette marque n'est pas disponible pour les objectifs.");
   const options = input.optionIds.length > 0
     ? (database.prepare(`SELECT id, code, description, brandId FROM lens_options WHERE id IN (${input.optionIds.map(() => "?").join(",")}) ORDER BY code COLLATE NOCASE`).all(...input.optionIds) as LensOption[])
     : [];
@@ -619,6 +664,28 @@ function refreshLabels() {
     database.prepare("UPDATE lenses SET label = ?, apscFocalMinEquivalentMm = ?, apscFocalMaxEquivalentMm = ?, updatedAt = ? WHERE id = ?")
       .run(normalized.label, normalized.apscFocalMinEquivalentMm, normalized.apscFocalMaxEquivalentMm, new Date().toISOString(), lens.id);
   }
+}
+
+function replaceBrandDomains(database: Database.Database, brandId: string, domains: BrandDomain[]) {
+  const insert = database.prepare("INSERT OR IGNORE INTO brand_domains (brandId, domain) VALUES (?, ?)");
+  database.prepare("DELETE FROM brand_domains WHERE brandId = ?").run(brandId);
+  for (const domain of new Set(domains)) insert.run(brandId, domain);
+}
+
+function assertBrandDomainCompatibility(database: Database.Database, brandId: string, domains: BrandDomain[]) {
+  if (!domains.includes("lenses")) {
+    const lensUsage = database.prepare("SELECT COUNT(*) AS count FROM lenses WHERE brandId = ?").get(brandId) as { count: number };
+    if (lensUsage.count > 0) throw new Error("Cette marque est encore utilisée par des objectifs.");
+  }
+
+  if (!domains.includes("accessories") && hasTable(database, "accessories")) {
+    const accessoryUsage = database.prepare("SELECT COUNT(*) AS count FROM accessories WHERE brandId = ?").get(brandId) as { count: number };
+    if (accessoryUsage.count > 0) throw new Error("Cette marque est encore utilisée par des accessoires.");
+  }
+}
+
+function hasTable(database: Database.Database, name: string) {
+  return Boolean(database.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?").get(name));
 }
 
 function toDbParams<T extends object>(values: T) {

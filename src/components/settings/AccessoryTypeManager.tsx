@@ -1,0 +1,49 @@
+"use client";
+
+import React from "react";
+import { useRef, useState } from "react";
+import { createAccessoryTypeAction, deleteAccessoryTypeAction, updateAccessoryTypeAction } from "@/app/actions/accessory-actions";
+import type { AccessoryType } from "@/lib/accessory/types";
+
+export function AccessoryTypeManager({ types }: { types: AccessoryType[] }) {
+  const formRef = useRef<HTMLFormElement>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleAdd(formData: FormData) {
+    setError(null);
+    try {
+      await createAccessoryTypeAction(formData);
+      formRef.current?.reset();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erreur lors de l'ajout");
+    }
+  }
+
+  return (
+    <div className="settings-page">
+      <div className="toolbar card"><h2>Types d’accessoires</h2></div>
+      <div className="card settings-section">
+        <h3>Ajouter un type</h3>
+        {error ? <p className="form-error" role="alert">{error}</p> : null}
+        <form ref={formRef} action={handleAdd} className="inline-form">
+          <input name="name" placeholder="Sac à dos" required />
+          <button className="primary-button" type="submit">Ajouter</button>
+        </form>
+      </div>
+      <div className="card settings-section">
+        <h3>Types existants ({types.length})</h3>
+        {types.length === 0 ? <p className="empty-state">Aucun type. Ajoutez-en un ci-dessus.</p> : (
+          <div className="settings-list">
+            {types.map((type) => (
+              <form key={type.id} action={updateAccessoryTypeAction.bind(null, type.id)} className="inline-form">
+                <input name="name" defaultValue={type.name} required />
+                <button className="ghost-button" type="submit">OK</button>
+                <button formAction={deleteAccessoryTypeAction.bind(null, type.id)} className="danger-button" type="submit">Supprimer</button>
+              </form>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

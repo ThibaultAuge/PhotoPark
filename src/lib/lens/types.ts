@@ -1,4 +1,5 @@
 export type SensorType = "FULL_FRAME" | "APS_C";
+export type BrandDomain = "lenses" | "accessories";
 
 export type Lens = {
   id: string;
@@ -38,7 +39,7 @@ export type LensInput = Omit<
   "id" | "brand" | "mount" | "sensorType" | "options" | "label" | "apscFocalMinEquivalentMm" | "apscFocalMaxEquivalentMm" | "createdAt" | "updatedAt"
 > & { optionIds: string[] };
 
-export type LensBrand = { id: string; name: string };
+export type LensBrand = { id: string; name: string; domains?: BrandDomain[] };
 export type LensMount = { id: string; name: string; sensorType: SensorType };
 export type LensOption = { id: string; code: string; description: string; brandId: string };
 

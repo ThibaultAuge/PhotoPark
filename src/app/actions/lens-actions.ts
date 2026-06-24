@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { refreshAccessoryLabels } from "@/lib/db/accessory-repository";
 import { hasValidSession } from "@/lib/auth/session";
 import { assertSameOriginRequest } from "@/lib/auth/csrf";
 import { createBrand, createLens, createMount, createOption, createOptionGroup, deleteBrand, deleteLens, deleteMount, deleteOption, deleteOptionGroup, replaceGroupMembers, updateBrand, updateLens, updateMount, updateOption, updateOptionGroup } from "@/lib/db/lens-repository";
@@ -33,18 +34,21 @@ export async function deleteLensAction(id: string) {
 
 export async function createBrandAction(formData: FormData) {
   await assertAuthenticated();
-  const { name } = parseBrandFormData(formData);
-  createBrand(name);
+  const { name, domains } = parseBrandFormData(formData);
+  createBrand(name, domains);
   revalidatePath("/settings/brands");
   revalidatePath("/lenses", "layout");
+  revalidatePath("/accessories", "layout");
 }
 
 export async function updateBrandAction(id: string, formData: FormData) {
   await assertAuthenticated();
-  const { name } = parseBrandFormData(formData);
-  updateBrand(id, name);
+  const { name, domains } = parseBrandFormData(formData);
+  updateBrand(id, name, domains);
+  refreshAccessoryLabels();
   revalidatePath("/settings/brands");
   revalidatePath("/lenses", "layout");
+  revalidatePath("/accessories", "layout");
 }
 
 export async function deleteBrandAction(id: string) {
@@ -52,6 +56,7 @@ export async function deleteBrandAction(id: string) {
   deleteBrand(id);
   revalidatePath("/settings/brands");
   revalidatePath("/lenses", "layout");
+  revalidatePath("/accessories", "layout");
 }
 
 export async function createMountAction(formData: FormData) {

@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { refreshAccessoryLabels } from "@/lib/db/accessory-repository";
+import { refreshBodyLabels } from "@/lib/db/body-repository";
 import { hasValidSession } from "@/lib/auth/session";
 import { assertSameOriginRequest } from "@/lib/auth/csrf";
 import { createBrand, createLens, createMount, createOption, createOptionGroup, deleteBrand, deleteLens, deleteMount, deleteOption, deleteOptionGroup, replaceGroupMembers, updateBrand, updateLens, updateMount, updateOption, updateOptionGroup } from "@/lib/db/lens-repository";
@@ -39,6 +40,7 @@ export async function createBrandAction(formData: FormData) {
   revalidatePath("/settings/brands");
   revalidatePath("/lenses", "layout");
   revalidatePath("/accessories", "layout");
+  revalidatePath("/bodies", "layout");
 }
 
 export async function updateBrandAction(id: string, formData: FormData) {
@@ -46,9 +48,11 @@ export async function updateBrandAction(id: string, formData: FormData) {
   const { name, domains } = parseBrandFormData(formData);
   updateBrand(id, name, domains);
   refreshAccessoryLabels();
+  refreshBodyLabels();
   revalidatePath("/settings/brands");
   revalidatePath("/lenses", "layout");
   revalidatePath("/accessories", "layout");
+  revalidatePath("/bodies", "layout");
 }
 
 export async function deleteBrandAction(id: string) {
@@ -57,6 +61,7 @@ export async function deleteBrandAction(id: string) {
   revalidatePath("/settings/brands");
   revalidatePath("/lenses", "layout");
   revalidatePath("/accessories", "layout");
+  revalidatePath("/bodies", "layout");
 }
 
 export async function createMountAction(formData: FormData) {
@@ -65,6 +70,7 @@ export async function createMountAction(formData: FormData) {
   createMount(name, sensorType);
   revalidatePath("/settings/mounts");
   revalidatePath("/lenses", "layout");
+  revalidatePath("/bodies", "layout");
 }
 
 export async function updateMountAction(id: string, formData: FormData) {
@@ -73,6 +79,7 @@ export async function updateMountAction(id: string, formData: FormData) {
   updateMount(id, name, sensorType);
   revalidatePath("/settings/mounts");
   revalidatePath("/lenses", "layout");
+  revalidatePath("/bodies", "layout");
 }
 
 export async function deleteMountAction(id: string) {
@@ -80,6 +87,7 @@ export async function deleteMountAction(id: string) {
   deleteMount(id);
   revalidatePath("/settings/mounts");
   revalidatePath("/lenses", "layout");
+  revalidatePath("/bodies", "layout");
 }
 
 export async function createOptionAction(formData: FormData) {

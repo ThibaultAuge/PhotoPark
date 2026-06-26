@@ -26,10 +26,11 @@ function initializeSchema(database: Database.Database) {
     CREATE TABLE IF NOT EXISTS mounts (id TEXT PRIMARY KEY, name TEXT NOT NULL UNIQUE COLLATE NOCASE, sensorType TEXT NOT NULL CHECK(sensorType IN ('FULL_FRAME', 'APS_C')), createdAt TEXT NOT NULL, updatedAt TEXT NOT NULL);
     CREATE TABLE IF NOT EXISTS brand_domains (
       brandId TEXT NOT NULL REFERENCES brands(id) ON DELETE CASCADE,
-      domain TEXT NOT NULL CHECK(domain IN ('lenses', 'accessories')),
+      domain TEXT NOT NULL CHECK(domain IN ('lenses', 'accessories', 'bodies')),
       PRIMARY KEY (brandId, domain)
     );
   `);
+  ensureBrandDomainsSchema(database);
 
   migrateLegacyLensOptions(database);
 
@@ -327,6 +328,7 @@ function seedReferenceData(database: Database.Database) {
   const canonId = "11111111-1111-4111-8111-111111111111";
 
   insertBrand.run(canonId, "Canon", now, now);
+  database.prepare("INSERT OR IGNORE INTO brand_domains (brandId, domain) VALUES (?, ?)").run(canonId, "bodies");
   insertMount.run("22222222-2222-4222-8222-222222222221", "Canon RF", "FULL_FRAME", now, now);
   insertMount.run("22222222-2222-4222-8222-222222222222", "Canon RF-S", "APS_C", now, now);
   insertMount.run("22222222-2222-4222-8222-222222222223", "Canon EF", "FULL_FRAME", now, now);
@@ -354,6 +356,26 @@ function seedReferenceData(database: Database.Database) {
   if (motorOption1) insertMember.run(motorOption1.id, "g-motor");
   if (motorOption2) insertMember.run(motorOption2.id, "g-motor");
   if (seriesOption) insertMember.run(seriesOption.id, "g-series");
+}
+
+function ensureBrandDomainsSchema(database: Database.Database) {
+  const table = database.prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'brand_domains'").get() as { sql?: string } | undefined;
+  if (!table?.sql || table.sql.includes("'bodies'")) return;
+
+  const transaction = database.transaction(() => {
+    database.exec("ALTER TABLE brand_domains RENAME TO brand_domains_legacy");
+    database.exec(`
+      CREATE TABLE brand_domains (
+        brandId TEXT NOT NULL REFERENCES brands(id) ON DELETE CASCADE,
+        domain TEXT NOT NULL CHECK(domain IN ('lenses', 'accessories', 'bodies')),
+        PRIMARY KEY (brandId, domain)
+      );
+    `);
+    database.prepare(`INSERT OR IGNORE INTO brand_domains (brandId, domain)
+      SELECT brandId, domain FROM brand_domains_legacy`).run();
+    database.exec("DROP TABLE brand_domains_legacy");
+  });
+  transaction();
 }
 
 export function listReferenceData(): LensReferenceData {
@@ -681,6 +703,11 @@ function assertBrandDomainCompatibility(database: Database.Database, brandId: st
   if (!domains.includes("accessories") && hasTable(database, "accessories")) {
     const accessoryUsage = database.prepare("SELECT COUNT(*) AS count FROM accessories WHERE brandId = ?").get(brandId) as { count: number };
     if (accessoryUsage.count > 0) throw new Error("Cette marque est encore utilisée par des accessoires.");
+  }
+
+  if (!domains.includes("bodies") && hasTable(database, "bodies")) {
+    const bodyUsage = database.prepare("SELECT COUNT(*) AS count FROM bodies WHERE brandId = ?").get(brandId) as { count: number };
+    if (bodyUsage.count > 0) throw new Error("Cette marque est encore utilisée par des boîtiers.");
   }
 }
 

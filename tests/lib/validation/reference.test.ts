@@ -20,6 +20,10 @@ describe("reference validation", () => {
     expect(brandSchema.parse({ name: "  Canon  ", domains: ["lenses"] })).toEqual({ name: "Canon", domains: ["lenses"] });
   });
 
+  test("brandSchema accepts bodies domain", () => {
+    expect(brandSchema.parse({ name: "Canon", domains: ["bodies"] })).toEqual({ name: "Canon", domains: ["bodies"] });
+  });
+
   /**
    * Verifies that empty brand names are rejected after trimming
    */
@@ -123,8 +127,9 @@ describe("reference validation", () => {
     formData.set("name", "  Nikon  ");
     formData.append("domains", "lenses");
     formData.append("domains", "accessories");
+    formData.append("domains", "bodies");
 
-    expect(parseBrandFormData(formData)).toEqual({ name: "Nikon", domains: ["lenses", "accessories"] });
+    expect(parseBrandFormData(formData)).toEqual({ name: "Nikon", domains: ["lenses", "accessories", "bodies"] });
   });
 
   /**

@@ -23,7 +23,7 @@ export function OptionGroupManager({
   return (
     <div className="settings-page">
       <div className="toolbar card">
-        <h2>Groupes d'options</h2>
+        <h2>Groupes d&apos;options</h2>
       </div>
 
       {/* Create group */}

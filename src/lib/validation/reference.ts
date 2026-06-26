@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const brandDomainSchema = z.enum(["lenses", "accessories"]);
+export const brandDomainSchema = z.enum(["lenses", "accessories", "bodies"]);
 export const brandSchema = z.object({
   name: z.string().trim().min(1).max(80),
   domains: z.array(brandDomainSchema).min(1),

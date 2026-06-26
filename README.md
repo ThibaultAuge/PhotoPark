@@ -1,6 +1,6 @@
 # PhotoPark
 
-Application privée Next.js pour inventorier, filtrer, visualiser et comparer du matériel photo, avec modules dédiés pour les objectifs et les accessoires photo.
+Application privée Next.js pour inventorier, filtrer, visualiser et comparer du matériel photo, avec modules dédiés pour les objectifs, les boîtiers et les accessoires photo.
 
 ## Fonctionnalités
 
@@ -11,22 +11,26 @@ Application privée Next.js pour inventorier, filtrer, visualiser et comparer du
 - Protection d’origine sur les actions mutatives.
 - Stockage SQLite local avec `better-sqlite3`.
 - CRUD complet des objectifs, avec statut `Retiré`.
+- Module d’inventaire `Boîtiers` complet avec fiche détail, filtres dédiés, création, modification, suppression et comparaison.
 - Module d’inventaire `Accessoires` pour les sacs et poches photo.
 - CRUD complet des accessoires avec fiche détail, filtres dédiés et types d’accessoires administrables.
 - Import client depuis un libellé d’objectif pour préremplir le formulaire.
-- Référentiels administrables pour les marques, les montures, les options et les types d’accessoires.
-- Les marques sont partagées entre objectifs et accessoires, avec assignation par domaine (`lenses`, `accessories`).
-- Relation 1-N entre une marque et les objectifs, et entre une monture et les objectifs.
+- Référentiels administrables pour les marques, les montures, les options, les groupes d’options et les types d’accessoires.
+- Les marques sont partagées entre objectifs, boîtiers et accessoires, avec assignation par domaine (`lenses`, `bodies`, `accessories`).
+- Les montures sont partagées entre objectifs et boîtiers interchangeables.
+- Relation 1-N entre une marque et les objectifs, les boîtiers et les accessoires.
 - Options associées aux objectifs en N-N avec un code court et une description.
+- Inventaire boîtiers en tableau desktop et cartes mobile, avec badges de statut, formatage cohérent du prix et du poids, et valeur `0` toujours affichée.
 - Inventaire accessoires en tableau desktop et cartes mobile, avec badges de statut, formatage cohérent du prix et du poids, et valeur `0` toujours affichée.
 - Tableau desktop et cartes mobile avec type `Fixe`/`Zoom`, plages identiques compactées (`7.8 mm`, `f/4`), badges de statut dont `Retiré`, prix formatés avec espaces pour les milliers et toujours 2 décimales (`3 314.00 €`), et poids formatés avec espaces pour les milliers (`1 079 g`).
 - Filtres par texte, marque, monture, option, type (`Tous`, `Fixe`, `Zoom`), statut et quatre plages numériques réglables par curseurs à double poignée (focale min 0–300 mm, focale max 0–300+ mm, ouverture à focale min f/1–f/30, ouverture à focale max f/1–f/30). Les deux plages de focale démarrent sur `0–300+ mm`. La borne haute `300` est ouverte et signifie `300 mm et plus`.
+- Filtres boîtiers par texte, marque, monture, format capteur, type (`mirrorless`, `dslr`) et statut.
 - Filtres accessoires par texte, marque, type, statut, compatibilité ordinateur et compatibilité trépied.
 - Graphique SVG interactif focale/ouverture disposé en mise en page deux colonnes (4/5 graphique, 1/5 liste à cocher) avec zoom molette, pan tactile, sélection et masquage d’objectifs. À l’ouverture, il coche automatiquement les objectifs possédés et non retirés.
 - Comparaison de 2 à 5 objectifs avec différences en gras.
+- Comparaison de 2 à 5 boîtiers via une popup flottante et une modale dédiée.
 - Navigation multi-pages avec barre de navigation : Objectifs, Boîtiers, Accessoires, Paramètres.
 - Pages paramètres séparées pour les marques, les montures, les options, les groupes d’options et les types d’accessoires.
-- La page `Boîtiers` reste un placeholder pour un futur inventaire.
 - Tests Vitest pour la validation et les helpers métier.
 
 Le schéma suivant résume le flux principal de l’application.
@@ -40,10 +44,12 @@ flowchart LR
     CRUD --> SQLite[(SQLite local)]
     App --> Chart[Graphique SVG interactif]
     App --> Compare[Comparaison 2 à 5]
+    App --> Bodies[Inventaire boîtiers]
     App --> Accessories[Inventaire accessoires]
+    Bodies --> BodyCompare[Comparaison boîtiers]
     Accessories --> AccessorySettings[Types d'accessoires]
 ```
-*Figure: Flux entre authentification, inventaires objectifs/accessoires, stockage SQLite et vues de visualisation.*
+*Figure: Flux entre authentification, inventaires objectifs/boîtiers/accessoires, stockage SQLite et vues de visualisation.*
 
 ## Prérequis
 
@@ -185,16 +191,44 @@ Chaque accessoire peut contenir notamment :
 
 Les types d’accessoires se gèrent dans `Paramètres > Types d’accessoires`.
 
+## Inventaire des boîtiers
+
+La page `/bodies` gère l’inventaire des boîtiers photo.
+
+Elle propose :
+
+- une liste en tableau sur desktop ;
+- des cartes sur mobile ;
+- des filtres par texte, marque, monture, format capteur, type et statut ;
+- une fenêtre de détail ;
+- des modales de création, modification et suppression ;
+- une comparaison de 2 à 5 boîtiers via une popup flottante et une modale.
+
+Chaque boîtier peut contenir notamment :
+
+- une marque ;
+- un nom ou libellé généré ;
+- un type `mirrorless` ou `dslr` ;
+- un indicateur `objectifs interchangeables` ;
+- un format de capteur et une monture partagée avec les objectifs ;
+- des mégapixels, une plage ISO, un prix, un poids et une rafale ;
+- des spécifications vidéo, une autonomie et des notes ;
+- des indicateurs `IBIS`, `double slot`, `tropicalisation` et `écran orientable` ;
+- des statuts comme `Favori`, `À acheter`, `Possédé` et `Retiré`.
+
+Les montures se gèrent dans `Paramètres > Montures` et sont partagées entre objectifs et boîtiers interchangeables.
+
 ## Marques partagées par domaine
 
-Les marques sont communes aux modules objectifs et accessoires.
+Les marques sont communes aux modules objectifs, boîtiers et accessoires.
 
 Chaque marque peut être assignée à un ou plusieurs domaines :
 
 - `lenses` pour les objectifs ;
+- `bodies` pour les boîtiers ;
 - `accessories` pour les accessoires.
 
-Les formulaires et filtres n’affichent que les marques valides pour le domaine courant. Par exemple, un formulaire accessoire ne propose pas une marque limitée aux objectifs.
+Les formulaires et filtres n’affichent que les marques valides pour le domaine courant. Par exemple, un formulaire boîtier ne propose pas une marque limitée aux accessoires.
 
 ## Scripts
 
@@ -210,7 +244,7 @@ Les formulaires et filtres n’affichent que les marques valides pour le domaine
 
 ## Tests
 
-Les tests utilisent Vitest avec l’environnement Node. La suite contient actuellement 230 tests.
+Les tests utilisent Vitest avec l’environnement Node.
 
 ```bash
 npm run test
@@ -228,6 +262,9 @@ La suite couvre actuellement :
 - les helpers de formatage ;
 - les groupes d’options (CRUD, assignation, affichage dans le comparateur) ;
 - le filtrage des options par marque dans les formulaires et le gestionnaire de paramètres ;
+- la validation des boîtiers et leurs helpers métier ;
+- le dépôt SQLite des boîtiers et le filtrage des marques pour le domaine `bodies` ;
+- la fonction `filterBodies` et le tableau de comparaison des boîtiers ;
 - le composant `DualRangeSlider` (rendu, positionnement de la barre de sélection, contrainte basse/haute, valeurs formatées, cas limites) ;
 - la fonction `filterLenses` (tous les types de filtres — textuel, marque, monture, option, type `Fixe`/`Zoom`, statut, plages numériques — filtres combinés, valeurs limites inclusives).
 
@@ -290,8 +327,8 @@ Les marques, les montures, les options et les types d’accessoires ne sont plus
 
 | Référentiel | Champs | Utilisation |
 |---|---|---|
-| Marques | `name`, domaines | Une marque peut être liée à plusieurs objectifs et/ou accessoires selon ses domaines autorisés. |
-| Montures | `name`, `sensorType` | Une monture peut être liée à plusieurs objectifs. Chaque objectif référence une seule monture. Le type de capteur est porté par la monture. |
+| Marques | `name`, domaines | Une marque peut être liée à plusieurs objectifs, boîtiers et/ou accessoires selon ses domaines autorisés. |
+| Montures | `name`, `sensorType` | Une monture peut être liée à plusieurs objectifs et boîtiers interchangeables. Chaque objectif référence une seule monture. Un boîtier interchangeable référence au plus une monture. Le type de capteur est porté par la monture. |
 | Options | `code`, `description`, `brandId` | Une option est liée à une seule marque. Elle peut être associée à plusieurs objectifs de cette marque. Un objectif peut avoir plusieurs options. |
 | Types d’accessoires | `name` | Un type peut être lié à plusieurs accessoires. Chaque accessoire référence un seul type. |
 
@@ -302,10 +339,12 @@ Le schéma suivant montre les relations principales entre les inventaires et les
 ```mermaid
 erDiagram
     BRANDS ||--o{ LENSES : reference
+    BRANDS ||--o{ BODIES : reference
     BRANDS ||--o{ BRAND_DOMAINS : scoped_by
     BRANDS ||--o{ LENS_OPTIONS : owns
     BRANDS ||--o{ ACCESSORIES : reference
     MOUNTS ||--o{ LENSES : reference
+    MOUNTS ||--o{ BODIES : reference
     LENSES ||--o{ LENS_OPTION_LINKS : has
     LENS_OPTIONS ||--o{ LENS_OPTION_LINKS : reference
     OPTION_GROUPS ||--o{ OPTION_GROUP_MEMBERS : contains
@@ -337,6 +376,12 @@ erDiagram
         text mountId FK
         text label
     }
+    BODIES {
+        text id PK
+        text brandId FK
+        text mountId FK
+        text label
+    }
     LENS_OPTION_LINKS {
         text lensId FK
         text optionId FK
@@ -362,23 +407,25 @@ erDiagram
         text label
     }
 ```
-*Figure: Relations entre objectifs, accessoires, marques partagées, options et types d’accessoires.*
+*Figure: Relations entre objectifs, boîtiers, accessoires, marques partagées, montures, options et types d’accessoires.*
 
 ### Contraintes de suppression
 
-SQLite protège les référentiels utilisés par des objectifs.
+SQLite protège les référentiels utilisés par les inventaires.
 
 - Vous ne pouvez pas supprimer une marque si au moins un objectif l’utilise.
+- Vous ne pouvez pas supprimer une marque si au moins un boîtier l’utilise.
 - Vous ne pouvez pas supprimer une marque si au moins un accessoire l’utilise.
 - Vous ne pouvez pas retirer un domaine d’une marque si des éléments existants l’utilisent encore dans ce domaine.
-- Vous ne pouvez pas supprimer une monture si au moins un objectif l’utilise.
+- Vous ne pouvez pas supprimer une monture si au moins un objectif ou un boîtier interchangeable l’utilise.
 - Vous ne pouvez pas supprimer une option si au moins un objectif l’utilise.
 - Vous ne pouvez pas supprimer un groupe d’options si au moins une option y est assignée. Retirez d’abord les options du groupe depuis la page de gestion.
 - Vous ne pouvez pas supprimer un type d’accessoire si au moins un accessoire l’utilise.
 - Vous pouvez supprimer un objectif sans supprimer ses référentiels. Les liens vers ses options sont supprimés automatiquement.
+- Vous pouvez supprimer un boîtier sans supprimer ses référentiels.
 - Vous pouvez supprimer un accessoire sans supprimer ses référentiels.
 
-Pour supprimer une entrée de référentiel, modifiez ou supprimez d’abord les objectifs qui la référencent.
+Pour supprimer une entrée de référentiel, modifiez ou supprimez d’abord les objectifs, boîtiers ou accessoires qui la référencent.
 
 ### Migration des anciennes bases
 
@@ -393,7 +440,7 @@ Une migration ultérieure ajoute la colonne `brandId` à la table `lens_options`
 
 Au démarrage, l’application répare aussi automatiquement les bases SQLite existantes si la table `lenses` ne contient pas encore les colonnes `minApertureAtMinFocal`, `minApertureAtMaxFocal` ou `retired`.
 
-Le schéma courant ajoute aussi la table `brand_domains` pour filtrer les marques par domaine et les tables `accessory_types` / `accessories` pour l’inventaire des sacs et poches.
+Le schéma courant ajoute aussi la table `brand_domains` pour filtrer les marques par domaine, la table `bodies` pour l’inventaire des boîtiers et les tables `accessory_types` / `accessories` pour l’inventaire des sacs et poches.
 
 Avant de lancer une version contenant cette migration sur une base existante, créez une sauvegarde du fichier SQLite.
 

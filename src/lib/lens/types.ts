@@ -1,5 +1,5 @@
 export type SensorType = "FULL_FRAME" | "APS_C";
-export type BrandDomain = "lenses" | "accessories";
+export type BrandDomain = "lenses" | "accessories" | "bodies";
 
 export type Lens = {
   id: string;

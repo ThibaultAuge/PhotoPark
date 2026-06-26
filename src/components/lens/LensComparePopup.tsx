@@ -19,6 +19,7 @@ export function LensComparePopup({ lenses, onClear, optionGroups, optionGroupMem
   // Close on Escape and lock body scroll when modal is open
   useEffect(() => {
     if (!isOpen) return;
+    const comparerButton = comparerBtnRef.current;
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") setIsOpen(false);
@@ -35,7 +36,7 @@ export function LensComparePopup({ lenses, onClear, optionGroups, optionGroupMem
       document.body.style.overflow = "";
 
       // Return focus to Comparer button when modal closes
-      comparerBtnRef.current?.focus();
+      comparerButton?.focus();
     };
   }, [isOpen]);
 

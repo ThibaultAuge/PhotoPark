@@ -33,16 +33,16 @@ export async function deleteAccessoryAction(id: string) {
 
 export async function createAccessoryTypeAction(formData: FormData) {
   await assertAuthenticated();
-  const { name } = parseAccessoryTypeFormData(formData);
-  createAccessoryType(name);
+  const { name, category } = parseAccessoryTypeFormData(formData);
+  createAccessoryType(name, category);
   revalidatePath("/settings/accessory-types");
   revalidatePath("/accessories", "layout");
 }
 
 export async function updateAccessoryTypeAction(id: string, formData: FormData) {
   await assertAuthenticated();
-  const { name } = parseAccessoryTypeFormData(formData);
-  updateAccessoryType(id, name);
+  const { name, category } = parseAccessoryTypeFormData(formData);
+  updateAccessoryType(id, name, category);
   revalidatePath("/settings/accessory-types");
   revalidatePath("/accessories", "layout");
 }

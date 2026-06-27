@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { filterAccessories, defaultAccessoryFilters } from "../../../src/components/accessory/AccessoryProvider";
+import { filterAccessories, defaultAccessoryFilters, sanitizeAccessoryFilters } from "../../../src/components/accessory/AccessoryProvider";
 import type { Accessory } from "../../../src/lib/accessory/types";
 
 const baseAccessory: Accessory = {
@@ -8,6 +8,7 @@ const baseAccessory: Accessory = {
   brand: "Peak Design",
   typeId: "t1",
   type: "Sac à dos",
+  typeCategory: "bag",
   name: "Everyday Backpack",
   label: "Peak Design Everyday Backpack",
   capacityLiters: 20,
@@ -22,6 +23,16 @@ const baseAccessory: Accessory = {
   priceEur: 299,
   carryStyleNotes: "Confortable",
   capacityNotes: "2 boîtiers + 4 objectifs",
+  storageLocation: "bag",
+  mountedOnLensId: null,
+  mountedOnAccessoryId: null,
+  rearMountType: "none",
+  rearDiameterMm: null,
+  frontMountType: "none",
+  frontDiameterMm: null,
+  filterRole: "general",
+  filterStrength: null,
+  supportsMagneticHood: false,
   isFavorite: true,
   isNextPurchase: false,
   isOwned: true,
@@ -37,6 +48,7 @@ const retiredAccessory: Accessory = {
   brand: "Wandrd",
   typeId: "t2",
   type: "Sac bandoulière",
+  typeCategory: "bag",
   name: "Rogue Sling",
   label: "Wandrd Rogue Sling",
   capacityLiters: null,
@@ -53,6 +65,49 @@ const retiredAccessory: Accessory = {
   retired: true,
 };
 
+const filterAccessory: Accessory = {
+  ...baseAccessory,
+  id: "a3",
+  brandId: "b3",
+  brand: "Kase",
+  typeId: "t3",
+  type: "Filtre magnétique",
+  typeCategory: "filter",
+  name: "ND64",
+  label: "Kase ND64",
+  capacityLiters: null,
+  capacityBodies: null,
+  capacityLenses: null,
+  fitsLaptop: false,
+  fitsTripod: false,
+  carryStyleNotes: null,
+  capacityNotes: "Montage rapide",
+  storageLocation: "reserve",
+  mountedOnLensId: null,
+  mountedOnAccessoryId: null,
+  rearMountType: "magnetic",
+  rearDiameterMm: 77,
+  frontMountType: "magnetic",
+  frontDiameterMm: 77,
+  filterRole: "filter",
+  filterStrength: "ND64",
+  supportsMagneticHood: true,
+  isFavorite: false,
+  isNextPurchase: false,
+  isOwned: true,
+  retired: false,
+};
+
+const mountedFilterAccessory: Accessory = {
+  ...filterAccessory,
+  id: "a4",
+  label: "Kase CPL",
+  name: "CPL",
+  storageLocation: "bag",
+  mountedOnLensId: "lens-1",
+  filterStrength: "CPL",
+};
+
 describe("filterAccessories", () => {
   /**
    * Verifies that default accessory filters only expose the remaining fields
@@ -65,6 +120,10 @@ describe("filterAccessories", () => {
       status: "",
       laptop: "",
       tripod: "",
+      location: "",
+      mountType: "",
+      compatibleLensId: "",
+      onlyCompatible: false,
     });
   });
 
@@ -121,6 +180,40 @@ describe("filterAccessories", () => {
   test("filters by tripod boolean", () => {
     expect(filterAccessories([baseAccessory, retiredAccessory], { ...defaultAccessoryFilters, tripod: "yes" })).toEqual([baseAccessory]);
     expect(filterAccessories([baseAccessory, retiredAccessory], { ...defaultAccessoryFilters, tripod: "no" })).toEqual([retiredAccessory]);
+  });
+
+  /**
+   * Verifies that filter accessory queries also match strength metadata
+   */
+  test("filters filter accessories by strength in the text query", () => {
+    expect(filterAccessories([filterAccessory], { ...defaultAccessoryFilters, query: "nd64" })).toEqual([filterAccessory]);
+    expect(filterAccessories([filterAccessory], { ...defaultAccessoryFilters, query: "cpl" })).toEqual([]);
+  });
+
+  /**
+   * Verifies that the location filter distinguishes reserve and mounted items
+   */
+  test("filters by active storage location", () => {
+    const accessories = [filterAccessory, mountedFilterAccessory];
+
+    expect(filterAccessories(accessories, { ...defaultAccessoryFilters, location: "reserve" })).toEqual([filterAccessory]);
+    expect(filterAccessories(accessories, { ...defaultAccessoryFilters, location: "mounted" })).toEqual([mountedFilterAccessory]);
+  });
+
+  /**
+   * Verifies that filter-specific interface filters match rear or front mounts
+   */
+  test("filters by mount type", () => {
+    const accessories = [baseAccessory, filterAccessory];
+
+    expect(filterAccessories(accessories, { ...defaultAccessoryFilters, mountType: "magnetic" })).toEqual([filterAccessory]);
+  });
+
+  test("sanitizes filters when switching between bag and filter pages", () => {
+    const mixedFilters = { ...defaultAccessoryFilters, laptop: "yes" as const, tripod: "no" as const, location: "mounted" as const };
+
+    expect(sanitizeAccessoryFilters(mixedFilters, "bag")).toMatchObject({ laptop: "yes", tripod: "no", location: "" });
+    expect(sanitizeAccessoryFilters(mixedFilters, "filter")).toMatchObject({ laptop: "", tripod: "", location: "mounted" });
   });
 
 });

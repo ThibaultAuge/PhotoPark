@@ -1,14 +1,17 @@
 "use client";
 
 import React from "react";
+import { useEffect } from "react";
 import { AccessoryCard } from "@/components/accessory/AccessoryCard";
 import { AccessoryDetailModal } from "@/components/accessory/AccessoryDetailModal";
 import { AccessoryFiltersBar } from "@/components/accessory/AccessoryFiltersBar";
 import { AccessoryForm } from "@/components/accessory/AccessoryForm";
 import { AccessoryTable } from "@/components/accessory/AccessoryTable";
-import { useAccessoryContext } from "@/components/accessory/AccessoryProvider";
+import { sanitizeAccessoryFilters, useAccessoryContext } from "@/components/accessory/AccessoryProvider";
+import { FilterAssemblyAssistant } from "@/components/accessory/FilterAssemblyAssistant";
+import type { AccessoryTypeCategory } from "@/lib/accessory/types";
 
-export function AccessoryListPage() {
+export function AccessoryListPage({ typeCategory = "bag" }: { typeCategory?: AccessoryTypeCategory }) {
   const {
     filters,
     setFilters,
@@ -24,6 +27,16 @@ export function AccessoryListPage() {
     referenceData,
   } = useAccessoryContext();
 
+  const scopedInitialAccessories = initialAccessories.filter((accessory) => accessory.typeCategory === typeCategory);
+  const scopedFilteredAccessories = filteredAccessories.filter((accessory) => accessory.typeCategory === typeCategory);
+  const title = typeCategory === "filter" ? "Filtres & bagues" : "Sacs & poches";
+  const createLabel = typeCategory === "filter" ? "Ajouter une pièce" : "Ajouter un accessoire";
+
+  useEffect(() => {
+    const sanitized = sanitizeAccessoryFilters(filters, typeCategory);
+    if (JSON.stringify(sanitized) !== JSON.stringify(filters)) setFilters(sanitized);
+  }, [filters, setFilters, typeCategory]);
+
   function startEdit() {
     if (!detailAccessory) return;
     setDetailAccessory(null);
@@ -34,27 +47,29 @@ export function AccessoryListPage() {
     <section className="manager-grid">
       <div className="toolbar card">
         <div>
-          <h2>Sacs & poches</h2>
-          <p>{filteredAccessories.length} accessoire(s) affiché(s) sur {initialAccessories.length}</p>
+          <h2>{title}</h2>
+          <p>{scopedFilteredAccessories.length} accessoire(s) affiché(s) sur {scopedInitialAccessories.length}</p>
         </div>
-        <button className="primary-button" onClick={() => setShowCreate(true)}>Ajouter un accessoire</button>
+        <button className="primary-button" onClick={() => setShowCreate(true)}>{createLabel}</button>
       </div>
 
-      <AccessoryFiltersBar filters={filters} setFilters={setFilters} referenceData={referenceData} onReset={resetFilters} />
+      <AccessoryFiltersBar filters={filters} setFilters={setFilters} referenceData={referenceData} onReset={resetFilters} typeCategory={typeCategory} />
+
+      {typeCategory === "filter" ? <FilterAssemblyAssistant accessories={scopedInitialAccessories} lenses={referenceData.lenses} /> : null}
 
       <div className="desktop-only">
-        <AccessoryTable accessories={filteredAccessories} onShowDetail={setDetailAccessory} onEdit={setEditingAccessory} />
+        <AccessoryTable accessories={scopedFilteredAccessories} onShowDetail={setDetailAccessory} onEdit={setEditingAccessory} />
       </div>
 
       <div className="mobile-cards">
-        {filteredAccessories.map((accessory) => (
+        {scopedFilteredAccessories.map((accessory) => (
           <AccessoryCard key={accessory.id} accessory={accessory} onShowDetail={setDetailAccessory} onEdit={setEditingAccessory} />
         ))}
       </div>
 
-      {detailAccessory ? <AccessoryDetailModal accessory={detailAccessory} onClose={() => setDetailAccessory(null)} onEdit={startEdit} /> : null}
-      {showCreate ? <AccessoryForm title="Ajouter un accessoire" referenceData={referenceData} onClose={() => setShowCreate(false)} /> : null}
-      {editingAccessory ? <AccessoryForm title="Modifier l'accessoire" referenceData={referenceData} accessory={editingAccessory} onClose={() => setEditingAccessory(null)} /> : null}
+      {detailAccessory ? <AccessoryDetailModal accessory={detailAccessory} accessories={scopedInitialAccessories} lenses={referenceData.lenses} onClose={() => setDetailAccessory(null)} onEdit={startEdit} /> : null}
+      {showCreate ? <AccessoryForm title={createLabel} referenceData={referenceData} typeCategory={typeCategory} accessories={scopedInitialAccessories} onClose={() => setShowCreate(false)} /> : null}
+      {editingAccessory ? <AccessoryForm title="Modifier l'accessoire" referenceData={referenceData} typeCategory={typeCategory} accessory={editingAccessory} accessories={scopedInitialAccessories} onClose={() => setEditingAccessory(null)} /> : null}
     </section>
   );
 }

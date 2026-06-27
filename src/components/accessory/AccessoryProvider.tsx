@@ -2,7 +2,8 @@
 
 import React from "react";
 import { createContext, useContext, useMemo, useState } from "react";
-import type { Accessory, AccessoryFilters, AccessoryReferenceData } from "@/lib/accessory/types";
+import { getAccessoryActiveLocation } from "@/lib/accessory/accessory-utils";
+import type { Accessory, AccessoryFilters, AccessoryReferenceData, AccessoryTypeCategory } from "@/lib/accessory/types";
 
 export const defaultAccessoryFilters: AccessoryFilters = {
   query: "",
@@ -11,6 +12,10 @@ export const defaultAccessoryFilters: AccessoryFilters = {
   status: "",
   laptop: "",
   tripod: "",
+  location: "",
+  mountType: "",
+  compatibleLensId: "",
+  onlyCompatible: false,
 };
 
 type AccessoryContextValue = {
@@ -65,7 +70,14 @@ export function AccessoryProvider({ initialAccessories, referenceData, children 
 export function filterAccessories(accessories: Accessory[], filters: AccessoryFilters) {
   const query = filters.query.trim().toLowerCase();
   return accessories.filter((accessory) => {
-    if (query && ![accessory.label, accessory.brand, accessory.type, accessory.capacityNotes ?? "", accessory.carryStyleNotes ?? ""].join(" ").toLowerCase().includes(query)) return false;
+    if (query && ![
+      accessory.label,
+      accessory.brand,
+      accessory.type,
+      accessory.capacityNotes ?? "",
+      accessory.carryStyleNotes ?? "",
+      accessory.filterStrength ?? "",
+    ].join(" ").toLowerCase().includes(query)) return false;
     if (filters.brand && accessory.brandId !== filters.brand) return false;
     if (filters.type && accessory.typeId !== filters.type) return false;
     if (filters.status === "favorite" && !accessory.isFavorite) return false;
@@ -76,6 +88,26 @@ export function filterAccessories(accessories: Accessory[], filters: AccessoryFi
     if (filters.laptop === "no" && accessory.fitsLaptop) return false;
     if (filters.tripod === "yes" && !accessory.fitsTripod) return false;
     if (filters.tripod === "no" && accessory.fitsTripod) return false;
+    if (filters.location && getAccessoryActiveLocation(accessory) !== filters.location) return false;
+    if (filters.mountType && accessory.rearMountType !== filters.mountType && accessory.frontMountType !== filters.mountType) return false;
     return true;
   });
+}
+
+export function sanitizeAccessoryFilters(filters: AccessoryFilters, typeCategory: AccessoryTypeCategory): AccessoryFilters {
+  if (typeCategory === "bag") {
+    return {
+      ...filters,
+      location: "",
+      mountType: "",
+      compatibleLensId: "",
+      onlyCompatible: false,
+    };
+  }
+
+  return {
+    ...filters,
+    laptop: "",
+    tripod: "",
+  };
 }

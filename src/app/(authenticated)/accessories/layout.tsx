@@ -4,6 +4,7 @@ import { listAccessories, listAccessoryReferenceData } from "@/lib/db/accessory-
 
 const accessoriesSubNavItems = [
   { href: "/accessories", label: "Sacs & poches" },
+  { href: "/accessories/filters", label: "Filtres & bagues" },
 ];
 
 export default function AccessoriesLayout({ children }: { children: React.ReactNode }) {

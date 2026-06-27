@@ -13,6 +13,7 @@ describe("accessory reference validation", () => {
   test("accessoryTypeSchema trims valid type names", () => {
     expect(accessoryTypeSchema.parse({ name: "  Sac à dos  " })).toEqual({
       name: "Sac à dos",
+      category: "bag",
     });
   });
 
@@ -37,6 +38,17 @@ describe("accessory reference validation", () => {
     const formData = new FormData();
     formData.set("name", "  Besace  ");
 
-    expect(parseAccessoryTypeFormData(formData)).toEqual({ name: "Besace" });
+    expect(parseAccessoryTypeFormData(formData)).toEqual({ name: "Besace", category: "bag" });
+  });
+
+  /**
+   * Verifies that accessory type form data keeps the selected filter category
+   */
+  test("parseAccessoryTypeFormData parses the filter category", () => {
+    const formData = new FormData();
+    formData.set("name", "Bague magnétique");
+    formData.set("category", "filter");
+
+    expect(parseAccessoryTypeFormData(formData)).toEqual({ name: "Bague magnétique", category: "filter" });
   });
 });

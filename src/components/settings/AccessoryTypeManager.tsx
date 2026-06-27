@@ -23,13 +23,17 @@ export function AccessoryTypeManager({ types }: { types: AccessoryType[] }) {
     <div className="settings-page">
       <div className="toolbar card"><h2>Types d’accessoires</h2></div>
       <div className="card settings-section">
-        <h3>Ajouter un type</h3>
-        {error ? <p className="form-error" role="alert">{error}</p> : null}
-        <form ref={formRef} action={handleAdd} className="inline-form">
-          <input name="name" placeholder="Sac à dos" required />
-          <button className="primary-button" type="submit">Ajouter</button>
-        </form>
-      </div>
+          <h3>Ajouter un type</h3>
+          {error ? <p className="form-error" role="alert">{error}</p> : null}
+          <form ref={formRef} action={handleAdd} className="inline-form">
+            <input name="name" placeholder="Sac à dos" required />
+            <select name="category" defaultValue="bag">
+              <option value="bag">Sacs & poches</option>
+              <option value="filter">Filtres & bagues</option>
+            </select>
+            <button className="primary-button" type="submit">Ajouter</button>
+          </form>
+        </div>
       <div className="card settings-section">
         <h3>Types existants ({types.length})</h3>
         {types.length === 0 ? <p className="empty-state">Aucun type. Ajoutez-en un ci-dessus.</p> : (
@@ -37,6 +41,10 @@ export function AccessoryTypeManager({ types }: { types: AccessoryType[] }) {
             {types.map((type) => (
               <form key={type.id} action={updateAccessoryTypeAction.bind(null, type.id)} className="inline-form">
                 <input name="name" defaultValue={type.name} required />
+                <select name="category" defaultValue={type.category}>
+                  <option value="bag">Sacs & poches</option>
+                  <option value="filter">Filtres & bagues</option>
+                </select>
                 <button className="ghost-button" type="submit">OK</button>
                 <button formAction={deleteAccessoryTypeAction.bind(null, type.id)} className="danger-button" type="submit">Supprimer</button>
               </form>

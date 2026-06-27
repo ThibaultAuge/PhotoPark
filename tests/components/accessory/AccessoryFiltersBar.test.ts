@@ -8,7 +8,11 @@ import type { AccessoryFilters, AccessoryReferenceData } from "../../../src/lib/
 
 const referenceData: AccessoryReferenceData = {
   brands: [{ id: "brand-a", name: "Peak Design" }],
-  types: [{ id: "type-a", name: "Sac à dos" }],
+  types: [
+    { id: "type-a", name: "Sac à dos", category: "bag" },
+    { id: "type-b", name: "Bague magnétique", category: "filter" },
+  ],
+  lenses: [],
 };
 
 const filters: AccessoryFilters = {
@@ -18,6 +22,10 @@ const filters: AccessoryFilters = {
   status: "",
   laptop: "",
   tripod: "",
+  location: "",
+  mountType: "",
+  compatibleLensId: "",
+  onlyCompatible: false,
 };
 
 function findElements(
@@ -51,6 +59,7 @@ describe("AccessoryFiltersBar", () => {
       setFilters: vi.fn(),
       referenceData,
       onReset: vi.fn(),
+      typeCategory: "bag",
     }));
 
     expect(html).toContain("Recherche");
@@ -65,6 +74,26 @@ describe("AccessoryFiltersBar", () => {
   });
 
   /**
+   * Verifies that filter mode renders filter-specific controls and type options
+   */
+  test("renders filter-specific fields for filter accessories", () => {
+    const html = renderToStaticMarkup(createElement(AccessoryFiltersBar, {
+      filters,
+      setFilters: vi.fn(),
+      referenceData,
+      onReset: vi.fn(),
+      typeCategory: "filter",
+    }));
+
+    expect(html).toContain("Localisation");
+    expect(html).toContain("Liaison");
+    expect(html).toContain("Bague magnétique");
+    expect(html).not.toContain("Laptop");
+    expect(html).not.toContain("Trépied");
+    expect(html).not.toContain("Sac à dos");
+  });
+
+  /**
    * Verifies that the status select updates filters with the chosen status
    */
   test("status select onChange updates filters.status", () => {
@@ -74,6 +103,7 @@ describe("AccessoryFiltersBar", () => {
       setFilters,
       referenceData,
       onReset: vi.fn(),
+      typeCategory: "bag",
     });
 
     const statusSelect = findElements(tree, (props, type) => type === "select" && props.value === filters.status)[2];
@@ -94,6 +124,7 @@ describe("AccessoryFiltersBar", () => {
       setFilters: vi.fn(),
       referenceData,
       onReset,
+      typeCategory: "bag",
     });
 
     const resetButton = findElements(tree, (props, type) => type === "button" && props.type === "button")[0];

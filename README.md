@@ -12,8 +12,8 @@ Application privée Next.js pour inventorier, filtrer, visualiser et comparer du
 - Stockage SQLite local avec `better-sqlite3`.
 - CRUD complet des objectifs, avec statut `Retiré`.
 - Module d’inventaire `Boîtiers` complet avec fiche détail, filtres dédiés, création, modification, suppression et comparaison.
-- Module d’inventaire `Accessoires` pour les sacs et poches photo.
-- CRUD complet des accessoires avec fiche détail, filtres dédiés et types d’accessoires administrables.
+- Module d’inventaire `Accessoires` avec deux sous-catégories : `Sacs & poches` et `Filtres & bagues`.
+- CRUD complet des accessoires avec fiche détail, filtres dédiés, types d’accessoires catégorisés et assistant de compatibilité pour les montages filtres/bagues.
 - Import client depuis un libellé d’objectif pour préremplir le formulaire.
 - Référentiels administrables pour les marques, les montures, les options, les groupes d’options et les types d’accessoires.
 - Les marques sont partagées entre objectifs, boîtiers et accessoires, avec assignation par domaine (`lenses`, `bodies`, `accessories`).
@@ -25,12 +25,12 @@ Application privée Next.js pour inventorier, filtrer, visualiser et comparer du
 - Tableau desktop et cartes mobile avec type `Fixe`/`Zoom`, plages identiques compactées (`7.8 mm`, `f/4`), badges de statut dont `Retiré`, prix formatés avec espaces pour les milliers et toujours 2 décimales (`3 314.00 €`), et poids formatés avec espaces pour les milliers (`1 079 g`).
 - Filtres par texte, marque, monture, option, type (`Tous`, `Fixe`, `Zoom`), statut et quatre plages numériques réglables par curseurs à double poignée (focale min 0–300 mm, focale max 0–300+ mm, ouverture à focale min f/1–f/30, ouverture à focale max f/1–f/30). Les deux plages de focale démarrent sur `0–300+ mm`. La borne haute `300` est ouverte et signifie `300 mm et plus`.
 - Filtres boîtiers par texte, marque, monture, format capteur, type (`mirrorless`, `dslr`) et statut.
-- Filtres accessoires par texte, marque, type, statut, compatibilité ordinateur et compatibilité trépied.
+- Filtres accessoires adaptés à la sous-catégorie : ordinateur/trépied pour les sacs, ou localisation et liaison pour les filtres et bagues.
 - Graphique SVG interactif focale/ouverture disposé en mise en page deux colonnes (4/5 graphique, 1/5 liste à cocher) avec zoom molette, pan tactile, sélection et masquage d’objectifs. À l’ouverture, il coche automatiquement les objectifs possédés et non retirés.
 - Comparaison de 2 à 5 objectifs avec différences en gras.
 - Comparaison de 2 à 5 boîtiers via une popup flottante et une modale dédiée.
 - Navigation multi-pages avec barre de navigation : Objectifs, Boîtiers, Accessoires, Paramètres.
-- Pages paramètres séparées pour les marques, les montures, les options, les groupes d’options et les types d’accessoires.
+- Pages paramètres séparées pour les marques, les montures, les options, les groupes d’options et les types d’accessoires avec catégorie.
 - Tests Vitest pour la validation et les helpers métier.
 
 Le schéma suivant résume le flux principal de l’application.
@@ -47,9 +47,12 @@ flowchart LR
     App --> Bodies[Inventaire boîtiers]
     App --> Accessories[Inventaire accessoires]
     Bodies --> BodyCompare[Comparaison boîtiers]
+    Accessories --> Bags[Sacs & poches]
+    Accessories --> Filters[Filtres & bagues]
+    Filters --> Assembly[Assistant de compatibilité]
     Accessories --> AccessorySettings[Types d'accessoires]
 ```
-*Figure: Flux entre authentification, inventaires objectifs/boîtiers/accessoires, stockage SQLite et vues de visualisation.*
+*Figure: Flux entre authentification, inventaires objectifs/boîtiers/accessoires, sous-catégories accessoires, stockage SQLite et vues de visualisation.*
 
 ## Prérequis
 
@@ -170,9 +173,14 @@ En revanche, si la modification change ces champs d’identité et entre en coll
 
 ## Inventaire des accessoires
 
-La page `/accessories` gère l’inventaire des sacs et poches photo.
+Le module accessoires est divisé en deux sous-catégories :
 
-Elle propose :
+- `/accessories` pour `Sacs & poches` ;
+- `/accessories/filters` pour `Filtres & bagues`.
+
+### Sacs & poches
+
+La page `/accessories` propose :
 
 - une liste en tableau sur desktop ;
 - des cartes sur mobile ;
@@ -180,16 +188,54 @@ Elle propose :
 - une fenêtre de détail ;
 - des modales de création, modification et suppression.
 
-Chaque accessoire peut contenir notamment :
+Chaque accessoire de cette sous-catégorie peut contenir notamment :
 
 - une marque ;
-- un type d’accessoire ;
+- un type d’accessoire de catégorie `bag` ;
 - un nom ou libellé généré ;
 - une capacité en litres, boîtiers et objectifs ;
 - des indicateurs `ordinateur portable` et `trépied` ;
 - des dimensions, un poids, un prix et des notes.
 
-Les types d’accessoires se gèrent dans `Paramètres > Types d’accessoires`.
+### Filtres & bagues
+
+La page `/accessories/filters` propose :
+
+- une liste en tableau sur desktop ;
+- des cartes sur mobile ;
+- des filtres par texte, marque, type, statut, localisation et liaison ;
+- une fenêtre de détail ;
+- des modales de création, modification et suppression ;
+- un assistant de compatibilité qui montre, par objectif, les montages actuels et les montages possibles. Le sélecteur d’objectif n’affiche que les objectifs éligibles (possédés, favoris ou à acheter, non retirés), avec un message `Aucun objectif éligible (possédé, favori ou à acheter, non retiré).` si aucun ne correspond.
+
+Dans le formulaire `Filtres & bagues`, le rôle et les interfaces calculent maintenant automatiquement le type d’accessoire et le nom généré.
+
+Pour les adaptateurs, les règles sont les suivantes :
+
+- `threaded → threaded` avec diamètres différents : `Bague de conversion` ;
+- `threaded → magnetic` avec diamètres différents : `Bague de réduction magnétique` ;
+- `threaded → magnetic` avec le même diamètre : `Bague magnétique`.
+
+Les combinaisons d’interfaces non prises en charge sont refusées par le formulaire et par la validation serveur.
+
+Si l’option de prise en charge du pare-soleil magnétique est cochée, le nom généré ajoute le suffixe `avec pare-soleil`.
+
+Chaque élément de cette sous-catégorie peut contenir notamment :
+
+- une marque ;
+- un type d’accessoire de catégorie `filter` ;
+- un nom ou libellé généré ;
+- une interface arrière et une interface avant (`threaded` ou `magnetic`) ;
+- une localisation (`sac`, `réserve`, `monté`) ;
+- une cible de montage actuelle ;
+- un rôle (`filtre`, `adaptateur`, `pare-soleil` ou usage général) ;
+- une force ou densité de filtre ;
+- un indicateur de compatibilité avec pare-soleil magnétique ;
+- un poids, un prix et des notes.
+
+Les types d’accessoires se gèrent dans `Paramètres > Types d’accessoires`, avec une catégorie `bag` ou `filter` pour chaque type.
+
+Les types par défaut de la catégorie `filter` incluent aussi `Bague de réduction magnétique` et `Bague magnétique`.
 
 ## Inventaire des boîtiers
 
@@ -330,9 +376,9 @@ Les marques, les montures, les options et les types d’accessoires ne sont plus
 | Marques | `name`, domaines | Une marque peut être liée à plusieurs objectifs, boîtiers et/ou accessoires selon ses domaines autorisés. |
 | Montures | `name`, `sensorType` | Une monture peut être liée à plusieurs objectifs et boîtiers interchangeables. Chaque objectif référence une seule monture. Un boîtier interchangeable référence au plus une monture. Le type de capteur est porté par la monture. |
 | Options | `code`, `description`, `brandId` | Une option est liée à une seule marque. Elle peut être associée à plusieurs objectifs de cette marque. Un objectif peut avoir plusieurs options. |
-| Types d’accessoires | `name` | Un type peut être lié à plusieurs accessoires. Chaque accessoire référence un seul type. |
+| Types d’accessoires | `name`, `category` | Un type peut être lié à plusieurs accessoires. Chaque accessoire référence un seul type. La catégorie détermine s’il apparaît dans `Sacs & poches` ou `Filtres & bagues`. |
 
-Les données par défaut ajoutent la marque `Canon`, les montures `Canon RF`, `Canon RF-S`, `Canon EF` et `Canon EF-S`, ainsi que les options `L`, `IS`, `USM` et `STM` liées à Canon. Trois groupes d’options sont également créés : Stabilisation (type *flag*), Motorisation (type *value*) et Série (type *value*), avec les options Canon assignées aux groupes correspondants. L’initialisation crée aussi les types d’accessoires de base `Sac à dos`, `Bandoulière`, `Poche` et `Ceinture`.
+Les données par défaut ajoutent la marque `Canon`, les montures `Canon RF`, `Canon RF-S`, `Canon EF` et `Canon EF-S`, ainsi que les options `L`, `IS`, `USM` et `STM` liées à Canon. Trois groupes d’options sont également créés : Stabilisation (type *flag*), Motorisation (type *value*) et Série (type *value*), avec les options Canon assignées aux groupes correspondants. L’initialisation crée aussi des types d’accessoires de base pour `Sacs & poches` et `Filtres & bagues`.
 
 Le schéma suivant montre les relations principales entre les inventaires et les référentiels.
 
@@ -440,7 +486,9 @@ Une migration ultérieure ajoute la colonne `brandId` à la table `lens_options`
 
 Au démarrage, l’application répare aussi automatiquement les bases SQLite existantes si la table `lenses` ne contient pas encore les colonnes `minApertureAtMinFocal`, `minApertureAtMaxFocal` ou `retired`.
 
-Le schéma courant ajoute aussi la table `brand_domains` pour filtrer les marques par domaine, la table `bodies` pour l’inventaire des boîtiers et les tables `accessory_types` / `accessories` pour l’inventaire des sacs et poches.
+Pour les accessoires, l’initialisation SQLite répare aussi d’abord les colonnes legacy avant de créer les index. Cette réparation évite un échec sur certaines bases locales mises à niveau avec l’erreur `no such column: mountedOnLensId`.
+
+Le schéma courant ajoute aussi la table `brand_domains` pour filtrer les marques par domaine, la table `bodies` pour l’inventaire des boîtiers et les tables `accessory_types` / `accessories` pour l’inventaire des accessoires avec sous-catégories `Sacs & poches` et `Filtres & bagues`.
 
 Avant de lancer une version contenant cette migration sur une base existante, créez une sauvegarde du fichier SQLite.
 

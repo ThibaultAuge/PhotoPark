@@ -175,6 +175,10 @@ small { color: var(--muted); }
 .detail-item-full { grid-column: 1 / -1; }
 .detail-item strong { font-size: 0.82rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
 .accessory-card h3 { margin-bottom: 10px; }
+.filter-assistant-card { padding: 20px; }
+.filter-assistant-controls { display: grid; gap: 12px; margin-top: 8px; }
+.filter-assistant-grid { display: grid; gap: 12px; margin-top: 16px; }
+.filter-assembly-list { margin: 0; padding-left: 18px; display: grid; gap: 6px; }
 
 .login-shell { min-height: 100dvh; display: grid; place-items: center; padding: 20px; }
 .login-card { width: min(460px, 100%); padding: 30px; display: grid; gap: 16px; }

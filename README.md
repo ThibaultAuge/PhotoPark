@@ -206,7 +206,7 @@ La page `/accessories/filters` propose :
 - des filtres par texte, marque, type, statut, localisation et liaison ;
 - une fenÃªtre de dÃ©tail ;
 - des modales de crÃ©ation, modification et suppression ;
-- un assistant de compatibilitÃ© qui montre, par objectif, les montages actuels et les montages possibles. Le sÃ©lecteur dâ€™objectif nâ€™affiche que les objectifs Ã©ligibles (possÃ©dÃ©s, favoris ou Ã  acheter, non retirÃ©s), avec un message `Aucun objectif Ã©ligible (possÃ©dÃ©, favori ou Ã  acheter, non retirÃ©).` si aucun ne correspond.
+- un assistant de montage interactif qui affiche la pile visuelle de chaque objectif (bloc objectif en bas, connecteurs, accessoires montés colorés par rôle, bouton d'ajout en haut). Depuis cette pile, vous pouvez monter un accessoire compatible ou démonter un accessoire existant directement depuis l'interface. Le sélecteur d'objectif n'affiche que les objectifs éligibles (possédés, favoris ou à acheter, non retirés), avec un message `Aucun objectif éligible (possédé, favori ou à acheter, non retiré).` si aucun ne correspond.
 
 Dans le formulaire `Filtres & bagues`, le rÃ´le et les interfaces calculent maintenant automatiquement le type dâ€™accessoire et le nom gÃ©nÃ©rÃ©.
 

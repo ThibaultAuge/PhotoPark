@@ -177,8 +177,389 @@ small { color: var(--muted); }
 .accessory-card h3 { margin-bottom: 10px; }
 .filter-assistant-card { padding: 20px; }
 .filter-assistant-controls { display: grid; gap: 12px; margin-top: 8px; }
-.filter-assistant-grid { display: grid; gap: 12px; margin-top: 16px; }
-.filter-assembly-list { margin: 0; padding-left: 18px; display: grid; gap: 6px; }
+
+
+/* ============ Filter Stack (interactive visual pile) ============ */
+
+.filter-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  padding: 16px 8px;
+  position: relative;
+}
+
+/* ---- Spacer (no connector) ---- */
+.filter-stack-spacer {
+  height: 8px;
+}
+
+/* ---- Connector between blocks ---- */
+.filter-stack-connector {
+  width: 80%;
+  max-width: 280px;
+  position: relative;
+  display: flex;
+  justify-content: center;
+  height: 28px;
+  align-items: center;
+}
+.filter-stack-connector::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 2px;
+  transform: translateY(-50%);
+}
+.filter-stack-connector--threaded::before {
+  border-top: 3px solid #94a3b8;
+}
+.filter-stack-connector--magnetic::before {
+  border-top: 3px dashed #94a3b8;
+}
+.filter-stack-connector-label {
+  position: relative;
+  background: #f5f7fb;
+  padding: 0 8px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #64748b;
+  white-space: nowrap;
+  z-index: 1;
+}
+
+/* ---- Block (lens or accessory) ---- */
+.filter-stack-block {
+  position: relative;
+  width: 100%;
+  max-width: 360px;
+  border-radius: 16px;
+  padding: 14px 16px;
+  border: 2px solid #e2e8f0;
+  background: white;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
+  transition: box-shadow 0.15s, border-color 0.15s;
+}
+.filter-stack-block:hover {
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.1);
+  border-color: #cbd5e1;
+}
+/* Role color: left border stripe via pseudo-element */
+.filter-stack-block::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  border-radius: 16px 0 0 16px;
+  background: var(--role-color, #6b7280);
+}
+/* Lens block (special styling) */
+.filter-stack-block--lens {
+  background: #1e293b;
+  border-color: #334155;
+  color: white;
+  max-width: 360px;
+}
+.filter-stack-block--lens::before {
+  display: none;
+}
+.filter-stack-block--lens .filter-stack-block-name {
+  color: white;
+  font-weight: 700;
+}
+.filter-stack-block--lens .filter-stack-diameter {
+  color: #94a3b8;
+}
+
+/* ---- Block body ---- */
+.filter-stack-block-body {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+.filter-stack-block-name {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: #1e293b;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  min-width: 0;
+}
+.filter-stack-block-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+.filter-stack-role-badge {
+  display: inline-block;
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-size: 0.65rem;
+  font-weight: 800;
+  color: white;
+  white-space: nowrap;
+  flex-shrink: 0;
+  letter-spacing: 0.03em;
+}
+.filter-stack-block-interfaces {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+  font-size: 0.78rem;
+  color: #64748b;
+}
+.filter-stack-interface {
+  font-weight: 600;
+  white-space: nowrap;
+}
+.filter-stack-arrow {
+  color: #94a3b8;
+  font-weight: 700;
+}
+.filter-stack-diameter {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #64748b;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* ---- Remove button (×) on mounted blocks ---- */
+.filter-stack-remove-btn {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 2px solid #e2e8f0;
+  background: white;
+  color: #ef4444;
+  font-size: 1rem;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s, background 0.15s, border-color 0.15s;
+  padding: 0;
+  z-index: 2;
+  font-weight: 700;
+}
+.filter-stack-block:hover .filter-stack-remove-btn,
+.filter-stack-block:focus-within .filter-stack-remove-btn {
+  opacity: 1;
+}
+.filter-stack-remove-btn:focus-visible {
+  opacity: 1;
+  outline: 3px solid #bfdbfe;
+  border-color: var(--primary);
+}
+.filter-stack-remove-btn:hover {
+  background: #fef2f2;
+  border-color: #fca5a5;
+}
+.filter-stack-remove-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ---- Spinner for pending ops ---- */
+.filter-stack-spinner {
+  position: absolute;
+  inset: 0;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.7);
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: wait;
+}
+.filter-stack-spinner::after {
+  content: "";
+  width: 20px;
+  height: 20px;
+  border: 3px solid #e2e8f0;
+  border-top-color: var(--role-color, #6b7280);
+  border-radius: 50%;
+  animation: filter-stack-spin 0.6s linear infinite;
+}
+@keyframes filter-stack-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ---- Add slot ---- */
+.filter-stack-slot {
+  width: 100%;
+  max-width: 360px;
+  min-height: 56px;
+  border: 2px dashed #cbd5e1;
+  border-radius: 16px;
+  background: transparent;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 16px;
+  transition: border-color 0.15s, background 0.15s;
+  font: inherit;
+  color: inherit;
+}
+.filter-stack-slot:hover {
+  border-color: var(--primary);
+  background: #f0f9ff;
+}
+.filter-stack-slot:focus-visible {
+  outline: 3px solid #bfdbfe;
+  border-color: var(--primary);
+}
+.filter-stack-slot-icon {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: var(--primary);
+  line-height: 1;
+}
+.filter-stack-slot-text {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: #475569;
+}
+.filter-stack-slot-count {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--primary);
+  white-space: nowrap;
+}
+
+/* Expanded slot (with available items list) */
+.filter-stack-slot--open {
+  cursor: default;
+  border-style: solid;
+  border-color: var(--primary);
+  background: #f8faff;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+}
+.filter-stack-slot-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.filter-stack-slot-header strong {
+  font-size: 0.85rem;
+  color: #1e293b;
+}
+
+/* Empty slot (no items available) */
+.filter-stack-slot--empty {
+  cursor: default;
+  border-style: solid;
+  border-color: #e2e8f0;
+  background: #f8fafc;
+}
+.filter-stack-slot--empty:hover {
+  border-color: #e2e8f0;
+  background: #f8fafc;
+}
+.filter-stack-slot-empty-text {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: #94a3b8;
+}
+.filter-stack-empty-text {
+  font-size: 0.85rem;
+  color: #94a3b8;
+  text-align: center;
+  padding: 12px;
+  margin: 0;
+}
+
+/* Available items list */
+.filter-stack-add-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.filter-stack-add-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: white;
+  border: 1px solid #e2e8f0;
+  transition: border-color 0.15s;
+}
+.filter-stack-add-item:hover {
+  border-color: #cbd5e1;
+}
+.filter-stack-add-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+.filter-stack-add-name {
+  font-weight: 600;
+  font-size: 0.85rem;
+  color: #1e293b;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.filter-stack-add-interface {
+  font-size: 0.75rem;
+  color: #64748b;
+  font-weight: 500;
+}
+.filter-stack-add-item .primary-button {
+  flex-shrink: 0;
+  font-size: 0.78rem;
+  padding: 6px 14px;
+}
+
+/* Responsive: stack adapts to small screens */
+@media (max-width: 520px) {
+  .filter-stack-block,
+  .filter-stack-slot {
+    max-width: 100%;
+  }
+  .filter-stack-connector {
+    width: 60%;
+  }
+  .filter-stack-block-header {
+    flex-wrap: wrap;
+  }
+  .filter-stack-add-item {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .filter-stack-add-item .primary-button {
+    width: 100%;
+    text-align: center;
+  }
+}
 
 .login-shell { min-height: 100dvh; display: grid; place-items: center; padding: 20px; }
 .login-card { width: min(460px, 100%); padding: 30px; display: grid; gap: 16px; }

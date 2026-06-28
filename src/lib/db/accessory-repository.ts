@@ -181,6 +181,98 @@ export function deleteAccessory(id: string) {
   getAccessoryDatabase().prepare("DELETE FROM accessories WHERE id = ?").run(id);
 }
 
+/**
+ * Mount an accessory directly on a lens.
+ * Validates consistency and updates mountedOnLensId.
+ * Wrapped in a transaction for atomicity.
+ */
+export function mountAccessoryOnLens(accessoryId: string, lensId: string) {
+  const database = getAccessoryDatabase();
+  database.transaction(() => {
+    const accessory = database.prepare("SELECT * FROM accessories WHERE id = ?").get(accessoryId) as Record<string, unknown> | undefined;
+    if (!accessory) throw new Error("Accessoire inconnu.");
+    const mapped = mapAccessoryRow(accessory);
+    const refs = resolveAccessoryRefs(database, mapped as AccessoryInput);
+    const input: AccessoryInput = { ...mapped, mountedOnLensId: lensId, mountedOnAccessoryId: null };
+    assertAccessoryMountConsistency(database, null, input, refs.typeCategory);
+    // If the accessory had descendants from a previous mount location, unmount them first
+    unmountDescendants(database, accessoryId);
+    database.prepare("UPDATE accessories SET mountedOnLensId = ?, mountedOnAccessoryId = NULL, updatedAt = ? WHERE id = ?")
+      .run(lensId, new Date().toISOString(), accessoryId);
+  })();
+}
+
+/**
+ * Mount an accessory on top of another accessory (parent).
+ * The parent must already be part of a lens-mounted chain.
+ */
+export function mountAccessoryOnAccessory(accessoryId: string, parentAccessoryId: string) {
+  if (accessoryId === parentAccessoryId) throw new Error("Impossible de monter une pièce sur elle-même.");
+  const database = getAccessoryDatabase();
+  database.transaction(() => {
+    const accessory = database.prepare("SELECT * FROM accessories WHERE id = ?").get(accessoryId) as Record<string, unknown> | undefined;
+    if (!accessory) throw new Error("Accessoire inconnu.");
+    const mapped = mapAccessoryRow(accessory);
+    const refs = resolveAccessoryRefs(database, mapped as AccessoryInput);
+    const input: AccessoryInput = { ...mapped, mountedOnLensId: null, mountedOnAccessoryId: parentAccessoryId };
+    assertAccessoryMountConsistency(database, null, input, refs.typeCategory);
+    // If the accessory had descendants from a previous mount location, unmount them first
+    unmountDescendants(database, accessoryId);
+    database.prepare("UPDATE accessories SET mountedOnAccessoryId = ?, mountedOnLensId = NULL, updatedAt = ? WHERE id = ?")
+      .run(parentAccessoryId, new Date().toISOString(), accessoryId);
+  })();
+}
+
+/** Unmount descendants (items mounted on the given accessory) without affecting the accessory itself. */
+function unmountDescendants(database: Database.Database, parentId: string) {
+  const ids = collectDescendantIds(database, parentId);
+  if (ids.length === 0) return;
+  const now = new Date().toISOString();
+  const stmt = database.prepare("UPDATE accessories SET mountedOnLensId = NULL, mountedOnAccessoryId = NULL, updatedAt = ? WHERE id = ?");
+  database.transaction(() => {
+    for (const id of ids) {
+      stmt.run(now, id);
+    }
+  })();
+}
+
+/**
+ * Unmount an accessory and all accessories mounted after it (cascade).
+ * Walks the mountedOnAccessoryId chain and clears mount fields on all descendants.
+ * Wrapped in a transaction for atomicity.
+ */
+export function unmountAccessoryAndDescendants(accessoryId: string) {
+  const database = getAccessoryDatabase();
+  const idsToUnmount = collectDescendantIds(database, accessoryId);
+  // Also unmount the requested item itself
+  idsToUnmount.push(accessoryId);
+  const now = new Date().toISOString();
+  const stmt = database.prepare("UPDATE accessories SET mountedOnLensId = NULL, mountedOnAccessoryId = NULL, updatedAt = ? WHERE id = ?");
+  database.transaction(() => {
+    for (const id of idsToUnmount) {
+      stmt.run(now, id);
+    }
+  })();
+}
+
+/** Recursively collects all accessory IDs that are mounted (directly or indirectly) on the given accessory. */
+function collectDescendantIds(database: Database.Database, parentId: string): string[] {
+  const ids: string[] = [];
+  const visited = new Set<string>();
+  const MAX_DESCENDANT_DEPTH = 20;
+  function walk(id: string, depth: number) {
+    if (depth > MAX_DESCENDANT_DEPTH || visited.has(id)) return;
+    visited.add(id);
+    const children = database.prepare("SELECT id FROM accessories WHERE mountedOnAccessoryId = ?").all(id) as { id: string }[];
+    for (const child of children) {
+      ids.push(child.id);
+      walk(child.id, depth + 1);
+    }
+  }
+  walk(parentId, 0);
+  return ids;
+}
+
 export function createAccessoryType(name: string, category: AccessoryType["category"]) {
   const now = new Date().toISOString();
   getAccessoryDatabase().prepare("INSERT INTO accessory_types (id, name, category, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?)").run(randomUUID(), name.trim(), category, now, now);
@@ -283,8 +375,11 @@ function assertAccessoryMountConsistency(database: Database.Database, currentId:
 }
 
 function hasAccessoryCycle(database: Database.Database, currentId: string, parentId: string) {
+  const visited = new Set<string>();
   let cursor: string | null = parentId;
   while (cursor) {
+    if (visited.has(cursor)) return true; // cycle in data
+    visited.add(cursor);
     if (cursor === currentId) return true;
     const next = database.prepare("SELECT mountedOnAccessoryId FROM accessories WHERE id = ?").get(cursor) as { mountedOnAccessoryId: string | null } | undefined;
     cursor = next?.mountedOnAccessoryId ?? null;

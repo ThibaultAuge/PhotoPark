@@ -1,6 +1,11 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, test } from "vitest";
+import { describe, expect, test, vi } from "vitest";
+
+// Mock useRouter from next/navigation
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ refresh: vi.fn() }),
+}));
 
 import { FilterAssemblyAssistant } from "../../../src/components/accessory/FilterAssemblyAssistant";
 import type { Accessory, AccessoryLensReference } from "../../../src/lib/accessory/types";
@@ -52,17 +57,18 @@ const accessories: Accessory[] = [
 
 describe("FilterAssemblyAssistant", () => {
   /**
-   * Verifies that the assistant renders compatibility sections and suggestions
+   * Verifies that the assistant renders the lens selector and the interactive stack
    */
-  test("renders the current stack and available assemblies", () => {
+  test("renders the interactive stack for a lens", () => {
     const html = renderToStaticMarkup(createElement(FilterAssemblyAssistant, { accessories, lenses }));
 
     expect(html).toContain("Assistant de montage");
-    expect(html).toContain("Pile montée");
-    expect(html).toContain("Montage immédiat");
-    expect(html).toContain("Montage avec déplacement");
-    expect(html).toContain("Kase Base ring");
-    expect(html).toContain("Aucune pièce montée.");
+    expect(html).toContain("Canon RF 35mm");
+    // The ring (threaded 52mm, magnetic 77mm) should be available in the add slot
+    expect(html).toContain("Ajouter un élément");
+    expect(html).toContain("1 disponible");
+    // The lens block shows the filter diameter
+    expect(html).toContain("Fileté 52 mm");
   });
 
   /**

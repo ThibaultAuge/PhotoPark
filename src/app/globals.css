@@ -279,9 +279,8 @@ small { color: var(--muted); }
 /* ---- Block body ---- */
 .filter-stack-block-body {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 12px;
+  flex-direction: column;
+  gap: 4px;
 }
 .filter-stack-block-name {
   font-weight: 600;
@@ -315,7 +314,6 @@ small { color: var(--muted); }
   display: flex;
   align-items: center;
   gap: 6px;
-  margin-top: 6px;
   font-size: 0.78rem;
   color: #64748b;
 }
@@ -537,6 +535,61 @@ small { color: var(--muted); }
   flex-shrink: 0;
   font-size: 0.78rem;
   padding: 6px 14px;
+}
+
+/* ============ Filter Stack Layout (illustration + pillar) ============ */
+
+.filter-stack-layout {
+  display: flex;
+  flex-direction: row;
+  gap: 16px;
+  align-items: flex-start;
+  justify-content: center;
+  margin-top: 12px;
+}
+
+.filter-stack-illustration-wrap {
+  flex-shrink: 0;
+  width: 360px;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding-top: 8px;
+}
+
+.filter-stack-svg {
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.filter-stack-illustration-wrap + .filter-stack {
+  flex: 1;
+  min-width: 0;
+  max-width: 400px;
+}
+
+/* Child-drawing style: soft hover glow on SVG groups */
+.filter-stack-svg g {
+  transition: opacity 0.15s;
+}
+.filter-stack-svg g:hover {
+  opacity: 0.85;
+}
+
+/* Responsive: stack below illustration on small screens */
+@media (max-width: 640px) {
+  .filter-stack-layout {
+    flex-direction: column;
+    align-items: center;
+  }
+  .filter-stack-illustration-wrap {
+    width: 280px;
+  }
+  .filter-stack-illustration-wrap + .filter-stack {
+    max-width: 100%;
+    width: 100%;
+  }
 }
 
 /* Responsive: stack adapts to small screens */

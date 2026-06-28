@@ -6,6 +6,7 @@ import { getActiveMountInterface, getMountedAssembly, getMountableAccessories } 
 import { formatMountEndpoint, isFilterAccessory } from "@/lib/accessory/accessory-utils";
 import { mountAccessoryOnLensAction, mountAccessoryOnAccessoryAction, unmountAccessoryAction } from "@/app/actions/accessory-actions";
 import type { Accessory, AccessoryLensReference, AccessoryMountType } from "@/lib/accessory/types";
+import { FilterStackIllustration } from "@/components/accessory/FilterStackIllustration";
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -226,7 +227,7 @@ function FilterStack({
   // 3. Lens block at the bottom
   visualItems.push(<LensBlock key="lens" lens={lens} />);
 
-  return <div className="filter-stack">{visualItems}</div>;
+  return <div className="filter-stack-layout">{/* Left: SVG illustration */}<div className="filter-stack-illustration-wrap"><FilterStackIllustration lens={lens} mountedChain={mountedChain} filterDiameterMm={lens.filterDiameterMm} /></div>{/* Right: interactive stack */}<div className="filter-stack">{visualItems}</div></div>;
 }
 
 // ─── Block Components ───────────────────────────────────────────────────────

@@ -1,0 +1,22 @@
+version: '3.8'
+
+services:
+  photopark:
+    image: ${REGISTRY:-registry.local:5000}/photopark:${IMAGE_TAG:-latest}
+    container_name: photopark
+    restart: unless-stopped
+    ports:
+      - "${APP_PORT:-8085}:3000"
+    environment:
+      - NODE_ENV=production
+      - APP_PASSWORD_HASH=${APP_PASSWORD_HASH}
+      - SESSION_SECRET=${SESSION_SECRET}
+      - DATABASE_PATH=/app/data/photos.sqlite
+      - NEXT_PUBLIC_APSC_CROP_FACTOR=${NEXT_PUBLIC_APSC_CROP_FACTOR:-1.5}
+      - TRUST_PROXY=${TRUST_PROXY:-false}
+      - NEXT_TELEMETRY_DISABLED=1
+    volumes:
+      - photopark-data:/app/data
+
+volumes:
+  photopark-data:

@@ -2,7 +2,9 @@ version: '3.8'
 
 services:
   photopark:
-    image: ${REGISTRY:-registry.local:5000}/photopark:${IMAGE_TAG:-latest}
+    build:
+      context: .
+      dockerfile: Dockerfile
     container_name: photopark
     restart: unless-stopped
     ports:
@@ -20,4 +22,3 @@ services:
 
 volumes:
   photopark-data:
-    external: true

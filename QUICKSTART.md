@@ -1,140 +1,85 @@
 # Quickstart — PhotoPark Deployment
 
-## Pré-requis
+## Principe
 
-- Git, Docker, npm installés sur votre machine de dev
-- Un serveur avec :
-  - Docker Engine
-  - Portainer (avec API HTTPS)
-  - Un registry Docker local (port 5000)
-- Accès Internet sortant depuis ce serveur (pour le runner GitHub)
+Portainer clone le dépôt GitHub et build l'image lui-même via le `Dockerfile`.
+Pas besoin de registry Docker, de runner GitHub Actions, ni de webhook.
 
----
-
-## 1. Fichiers de déploiement
-
-| Fichier | À faire |
-|---|---|
-| `Dockerfile` | ✅ Prêt — build multi-stage Node 20 Alpine |
-| `.dockerignore` | ✅ Prêt — exclusion des fichiers inutiles |
-| `docker-compose.yml` | ✅ Prêt — stack Portainer + volume SQLite |
-| `scripts/deploy.sh` | ✅ Prêt — build → push → webhook (3 commandes) |
-| `scripts/setup-runner.sh` | ✅ Prêt — installation du runner auto-hébergé |
-| `.github/workflows/deploy.yml` | ✅ Prêt — workflow GitHub Actions |
-
----
-
-## 2. Créer le stack Portainer
-
-1. Connectez-vous à Portainer (`https://portainer.local:9443`)
-2. **Stacks > Add stack**
-3. Nom : `photopark`
-4. Copier le contenu de `docker-compose.yml`
-5. Définir les variables d'environnement du stack :
-
-   | Variable | Valeur |
-   |---|---|
-   | `APP_PASSWORD_HASH` | Généré via `npm run hash-password -- "mon-mot-de-passe"` |
-   | `SESSION_SECRET` | Chaîne de 32+ caractères aléatoires |
-    | `REGISTRY` | `registry.local:5000` |
-    | `APP_PORT` | `8085` |
-
-6. Cliquer **Deploy the stack**
-7. Vérifier que le container tourne : `curl http://portainer.local:8085`
-
----
-
-## 3. Activer le webhook Portainer
-
-1. Dans Portainer, aller sur le stack **photopark**
-2. Onglet **Webhooks** → cliquer **Enable**
-3. Copier l'URL générée (type : `https://portainer.local:9443/api/stacks/webhook/abc123...`)
-4. Tester : `curl -X POST "URL_COPIEE"` → réponse HTTP **204**
-
-> ⚠️ Cette URL est la clé qui permet à GitHub de déclencher le redéploiement
-> sans avoir les identifiants Portainer. Gardez-la secrète.
-
----
-
-## 4. Installer le runner GitHub Actions
-
-### Option A : Docker (recommandé)
-
-Depuis le serveur :
-
-```bash
-# 1. Aller dans GitHub > Settings > Actions > Runners > New runner
-# 2. Copier le token affiché
-# 3. Sur le serveur :
-bash scripts/setup-runner.sh \
-  --docker \
-  --org "votre-organisation" \
-  --repo "photopark" \
-  --token "TOKEN_RECUPERE"
 ```
-
-Vérifier : `docker logs github-runner` → "Runner connected"
-
-### Option B : Installation directe sur l'hôte
-
-```bash
-bash scripts/setup-runner.sh \
-  --host \
-  --org "votre-organisation" \
-  --repo "photopark" \
-  --token "TOKEN_RECUPERE"
-```
-
-Vérifier : `sudo /opt/actions-runner/svc.sh status` → "active"
-
----
-
-## 5. Configurer GitHub
-
-1. Aller dans **GitHub > Settings > Secrets and variables > Actions**
-2. Ajouter un **secret** :
-
-   | Nom | Valeur |
-   |---|---|
-   | `PORTAINER_WEBHOOK_URL` | L'URL copiée à l'étape 3 |
-
-3. Ajouter une **variable** (optionnelle) :
-
-   | Nom | Valeur par défaut |
-   |---|---|
-    | `REGISTRY` | `registry.local:5000` |
-
-4. Vérifier que le runner apparaît en ligne dans **Settings > Actions > Runners**
-
----
-
-## 6. Premier déploiement
-
-### Manuel (via GitHub)
-
-1. Aller dans **GitHub > Actions > Deploy PhotoPark**
-2. Cliquer **Run workflow** (branche `main`)
-3. Suivre les logs en direct
-
-### Manuel (via terminal sur le serveur)
-
-```bash
-export REGISTRY="registry.local:5000"
-export PORTAINER_WEBHOOK_URL="https://portainer.local:9443/api/stacks/webhook/abc123..."
-bash scripts/deploy.sh
+GitHub ──push──> Portainer (clone + docker build + docker compose up -d)
 ```
 
 ---
 
-## 7. Automatisation
+## 1. Créer le stack dans Portainer
 
-Dès que vous pushez sur `main`, le workflow se déclenche automatiquement :
+1. Aller dans **Portainer > Stacks > Add stack**
+2. Onglet **Git**
+3. Remplir :
+
+   | Champ | Valeur |
+   |---|---|
+   | Name | `photopark` |
+   | Repository URL | `https://github.com/votre-org/photopark` |
+   | Compose path | `docker-compose.yml` |
+   | Branch | `main` |
+
+4. Cliquer **Deploy the stack**
+
+> Portainer clone le repo, build l'image via le `Dockerfile`, puis lance le container.
+
+---
+
+## 2. Configurer les variables d'env du stack
+
+Une fois le stack créé, aller dans **Stacks > photopark > Environment variables**.
+
+Ajouter :
+
+| Variable | Valeur | Requis |
+|---|---|---|
+| `APP_PASSWORD_HASH` | Généré via `npm run hash-password -- "mon-mot-de-passe"` | ✅ |
+| `SESSION_SECRET` | Chaîne de 32+ caractères aléatoires | ✅ |
+| `APP_PORT` | `8085` | ❌ (défaut) |
+
+> `APP_PASSWORD_HASH` et `SESSION_SECRET` sont les secrets applicatifs.
+> Ne les committez jamais dans le dépôt.
+
+---
+
+## 3. Mettre à jour après un push
+
+### Option A : Mise à jour manuelle (recommandé)
+
+1. Aller dans **Portainer > Stacks > photopark**
+2. Cliquer **Update** → **Pull and redeploy**
+3. Portainer pull le dernier code, rebuild l'image, redéploie
+
+### Option B : Mise à jour automatique (polling)
+
+1. Aller dans **Stacks > photopark > Git settings**
+2. Activer **Auto update**
+3. Définir un intervalle (ex: toutes les 5 minutes)
+
+> ⚠️ L'auto-update n'est pas instantané. Portainer vérifie GitHub à intervalle régulier.
+
+### Option C : Webhook GitHub → Portainer (si le serveur est accessible)
+
+Si un jour ton serveur est accessible depuis l'extérieur, tu peux activer le **webhook Git** dans Portainer. GitHub tappe l'URL à chaque push → déploiement instantané.
+
+---
+
+## 4. Premier déploiement
 
 ```bash
-git add .
-git commit -m "feat: ajout d'un objectif"
+# 1. Pousser le code sur GitHub
 git push origin main
-# → GitHub Actions build + deploy automatique
+
+# 2. Dans Portainer, Update le stack
+#    Stacks > photopark > Update > Pull and redeploy
+
+# 3. Vérifier
+curl http://portainer.local:8085
 ```
 
 ---
@@ -142,25 +87,22 @@ git push origin main
 ## Vérifications
 
 ```bash
-# L'application répond
-curl http://portainer.local:8085
-
 # Logs du container
 docker logs photopark
 
-# Logs du runner
-docker logs -f github-runner
-
 # Base de données persistée
 docker run --rm -v photopark-data:/data alpine ls -la /data
+
+# Health check du container
+docker inspect photopark --format '{{.State.Health.Status}}'
 ```
 
 ---
 
-## Sauvegarde SQLite (cron)
+## Sauvegarde SQLite (cron sur le serveur)
 
 ```bash
-# Ajouter dans crontab (s'exécute à 2h du matin)
+# Ajouter dans crontab
 0 2 * * * docker run --rm \
   -v photopark-data:/data \
   -v /srv/backups:/backups \
@@ -169,12 +111,14 @@ docker run --rm -v photopark-data:/data alpine ls -la /data
 
 ---
 
-## En cas de problème
+## Fichiers de déploiement
 
-| Problème | Solution |
-|---|---|
-| Le runner ne se connecte pas | Le token expire après 1h → regénérer et réexécuter `setup-runner.sh` |
-| Portainer webhook échoue | Vérifier que l'URL est correcte + que le stack existe |
-| L'image Docker ne se build pas | Vérifier que `npm ci` passe (package-lock.json à jour) |
-| La base SQLite est vide | Les données sont dans le volume `photopark-data` → les backups sont essentiels |
-| Le registry n'est pas accessible | `docker login registry.local:5000` sur le runner d'abord |
+| Fichier | Utile ? | Rôle |
+|---|---|---|
+| `Dockerfile` | ✅ | Build multi-stage Node 20 Alpine |
+| `.dockerignore` | ✅ | Exclusion des fichiers inutiles du build |
+| `docker-compose.yml` | ✅ | Stack Portainer |
+| `scripts/deploy.sh` | ❌ (optionnel) | Pour déploiement manuel en CLI |
+| `scripts/setup-runner.sh` | ❌ (optionnel) | Pour installer un runner GH Actions |
+| `.github/workflows/deploy.yml` | ❌ (optionnel) | Workflow GitHub Actions |
+| `QUICKSTART.md` | ✅ | Ce guide |

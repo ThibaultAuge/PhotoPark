@@ -32,7 +32,7 @@ export function AccessoryForm({
     accessory?.mountedOnLensId ? "lens" : accessory?.mountedOnAccessoryId ? "accessory" : "none",
   );
   const [filterDraft, setFilterDraft] = useState(() => ({
-    filterRole: accessory?.filterRole === "general" ? "filter" : accessory?.filterRole ?? "filter",
+    filterRole: accessory?.filterRole ?? "filter",
     rearMountType: accessory?.rearMountType ?? "none",
     rearDiameterMm: accessory?.rearDiameterMm !== null && accessory?.rearDiameterMm !== undefined ? String(accessory.rearDiameterMm) : "",
     frontMountType: accessory?.frontMountType ?? "none",
@@ -41,11 +41,11 @@ export function AccessoryForm({
     filterStrength: accessory?.filterStrength ?? "",
   }));
 
-  const selectedType = allowedTypes.find((type) => type.id === selectedTypeId) ?? allowedTypes[0] ?? null;
-  const filterCategory = selectedType?.category === "filter";
+  const filterCategory = typeCategory === "filter";
+  const useDerivedFilterIdentity = filterCategory && filterDraft.filterRole !== "general";
   const parentAccessories = accessories.filter((item) => item.id !== accessory?.id && item.typeCategory === "filter" && (item.mountedOnLensId || item.mountedOnAccessoryId));
   const mountableLenses = referenceData.lenses.filter((lens) => lens.filterDiameterMm !== null);
-  const derivedFilterPresentation = filterCategory
+  const derivedFilterPresentation = useDerivedFilterIdentity
     ? deriveFilterAccessoryPresentation({
       filterRole: filterDraft.filterRole,
       rearMountType: filterDraft.rearMountType,
@@ -56,8 +56,8 @@ export function AccessoryForm({
       filterStrength: filterDraft.filterStrength,
     })
     : null;
-  const derivedFilterTypeId = filterCategory ? resolveFilterAccessoryTypeId(referenceData, derivedFilterPresentation?.typeName ?? null) : "";
-  const canSubmitFilter = !filterCategory || Boolean(derivedFilterPresentation?.valid && derivedFilterTypeId && derivedFilterPresentation.name.trim());
+  const derivedFilterTypeId = useDerivedFilterIdentity ? resolveFilterAccessoryTypeId(referenceData, derivedFilterPresentation?.typeName ?? null) : "";
+  const canSubmitFilter = !useDerivedFilterIdentity || Boolean(derivedFilterPresentation?.valid && derivedFilterTypeId && derivedFilterPresentation.name.trim());
 
   async function submitAndClose(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -102,7 +102,7 @@ export function AccessoryForm({
             <div className="form-section-header"><h3 className="form-section-title">Identité</h3></div>
             <div className="form-section-body">
               <label>Marque<select name="brandId" defaultValue={accessory?.brandId ?? referenceData.brands[0]?.id ?? ""} required>{referenceData.brands.map((brand) => <option key={brand.id} value={brand.id}>{brand.name}</option>)}</select></label>
-              {filterCategory ? (
+              {useDerivedFilterIdentity ? (
                 <>
                   <input type="hidden" name="typeId" value={derivedFilterTypeId} />
                   <input type="hidden" name="name" value={derivedFilterPresentation?.name ?? ""} />
@@ -123,7 +123,7 @@ export function AccessoryForm({
               <section>
                 <div className="form-section-header"><h3 className="form-section-title">Montage</h3></div>
                 <div className="form-section-body">
-                  <label>Rôle<select name="filterRole" value={filterDraft.filterRole} onChange={(event) => updateFilterDraft(setFilterDraft, "filterRole", event.target.value)}><option value="filter">Filtre</option><option value="adapter">Adaptateur / bague</option><option value="hood">Pare-soleil</option></select></label>
+                  <label>Rôle<select name="filterRole" value={filterDraft.filterRole} onChange={(event) => updateFilterDraft(setFilterDraft, "filterRole", event.target.value as "general" | "filter" | "adapter" | "hood")}><option value="general">Générique</option><option value="filter">Filtre</option><option value="adapter">Adaptateur / bague</option><option value="hood">Pare-soleil</option></select></label>
                   <label>Localisation<select name="storageLocation" defaultValue={accessory?.storageLocation ?? "bag"}><option value="bag">Sac</option><option value="reserve">Réserve</option></select></label>
                   <label>Cible de montage<select value={mountTarget} onChange={(event) => setMountTarget(event.target.value as "none" | "lens" | "accessory")}><option value="none">Non monté</option><option value="lens">Directement sur un objectif</option><option value="accessory">Devant une autre pièce</option></select></label>
                   {mountTarget === "lens" ? (
@@ -147,7 +147,7 @@ export function AccessoryForm({
                     <>
                       <input type="hidden" name="frontMountType" value={filterDraft.rearMountType} />
                       <input type="hidden" name="frontDiameterMm" value={filterDraft.rearDiameterMm} />
-                      <p className="form-help">Pour un filtre, l'interface avant est identique à l'interface arrière.</p>
+                      <p className="form-help">Pour un filtre, l&apos;interface avant est identique à l&apos;interface arrière.</p>
                     </>
                   ) : (
                     <>
@@ -269,7 +269,7 @@ function parseDraftNumber(value: string) {
 
 function updateFilterDraft(
   setFilterDraft: React.Dispatch<React.SetStateAction<{
-    filterRole: "filter" | "adapter" | "hood";
+    filterRole: "general" | "filter" | "adapter" | "hood";
     rearMountType: "none" | "threaded" | "magnetic";
     rearDiameterMm: string;
     frontMountType: "none" | "threaded" | "magnetic";

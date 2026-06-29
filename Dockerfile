@@ -30,6 +30,10 @@ RUN npm ci --omit=dev
 # Copier le build Next.js
 COPY --from=builder /app/.next ./.next
 COPY --from=builder /app/public ./public
+COPY --from=builder /app/next.config.ts ./next.config.ts
+
+# Conserver aussi package.json côté runtime pour les scripts/npm metadata
+COPY --from=builder /app/package.json ./package.json
 
 # Créer le dossier de données SQLite (sera monté en volume)
 RUN mkdir -p /app/data

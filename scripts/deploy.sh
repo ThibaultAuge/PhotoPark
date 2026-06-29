@@ -2,26 +2,20 @@
 set -euo pipefail
 
 # =============================================================================
-# deploy.sh — Build, push et déclenchement du webhook Portainer
+# deploy.sh — Fallback local pour builder et redéployer via docker compose
+#
+# NOTE : L'approche recommandée reste Portainer > Stacks > Git.
+# Ce script sert de roue de secours quand on veut redéployer localement
+# depuis un checkout du repo, sans GitHub Actions, sans registry et sans webhook.
 #
 # Pré-requis :
-#   - docker, curl installés sur le runner
-#   - Un webhook activé dans Portainer pour le stack photopark
-#     (Stacks > photopark > Webhooks > Enable)
+#   - docker installé
+#   - les variables APP_PASSWORD_HASH et SESSION_SECRET exportées
+#     (ou présentes dans un fichier .env local non versionné)
 #
 # Usage :
 #   bash scripts/deploy.sh
-#
-# Variables d'environnement :
-#   PORTAINER_WEBHOOK_URL   — URL du webhook Portainer (requis)
-#   REGISTRY                — Registry Docker (défaut: registry.local:5000)
-#   IMAGE_TAG               — Tag de l'image (défaut: timestamp)
 # =============================================================================
-
-# --- Configuration -----------------------------------------------------------
-REGISTRY="${REGISTRY:-registry.local:5000}"
-IMAGE_NAME="photopark"
-IMAGE_TAG="${IMAGE_TAG:-$(date +%Y%m%d%H%M%S)}"
 
 # --- Couleurs ----------------------------------------------------------------
 RED='\033[0;31m'; GREEN='\033[0;32m'; NC='\033[0m'
@@ -29,34 +23,21 @@ info()  { echo -e "${GREEN}[INFO]${NC}  $1"; }
 error() { echo -e "${RED}[ERROR]${NC} $1"; exit 1; }
 
 # --- Vérifications -----------------------------------------------------------
-[ -z "${PORTAINER_WEBHOOK_URL:-}" ] && error "PORTAINER_WEBHOOK_URL is required"
 command -v docker >/dev/null 2>&1   || error "docker is required"
-command -v curl   >/dev/null 2>&1   || error "curl is required"
 
-# --- Build -------------------------------------------------------------------
-info "Build ${REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}..."
-docker build -t "${REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}" .
-docker tag "${REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}" "${REGISTRY}/${IMAGE_NAME}:latest"
+# --- Préparation -------------------------------------------------------------
+info "Création du volume externe si nécessaire..."
+docker volume create photopark-data >/dev/null
 
-# --- Push --------------------------------------------------------------------
-info "Push vers le registry..."
-docker push "${REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}"
-docker push "${REGISTRY}/${IMAGE_NAME}:latest"
+# --- Build & deploy ----------------------------------------------------------
+info "Build de l'image via docker compose..."
+docker compose build || error "docker compose build a échoué"
 
-# --- Webhook Portainer -------------------------------------------------------
-info "Déclenchement du webhook Portainer..."
-HTTP_CODE=$(curl -ks -o /tmp/photopark_webhook.log -w "%{http_code}" \
-  -X POST "${PORTAINER_WEBHOOK_URL}")
-
-if [ "${HTTP_CODE}" = "204" ]; then
-  info "Webhook déclenché avec succès (HTTP ${HTTP_CODE})"
-else
-  error "Webhook échoué (HTTP ${HTTP_CODE}) : $(cat /tmp/photopark_webhook.log 2>/dev/null)"
-fi
+info "Redéploiement du stack local..."
+docker compose up -d || error "docker compose up -d a échoué"
 
 echo ""
 info "══════════════════════════════════════════════════════════════"
-info "  Déploiement terminé !"
-info "  Image : ${REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}"
-info "  Portainer va pull la nouvelle image et redéployer."
+info "  Déploiement local terminé !"
+info "  Le stack photopark a été rebuild et redémarré."
 info "══════════════════════════════════════════════════════════════"

@@ -206,9 +206,11 @@ La page `/accessories/filters` propose :
 - des filtres par texte, marque, type, statut, localisation et liaison ;
 - une fenêtre de détail ;
 - des modales de création, modification et suppression ;
-- un assistant de montage interactif qui affiche la pile visuelle de chaque objectif (bloc objectif en bas, connecteurs, accessoires montés colorés par rôle, bouton d'ajout en haut), accompagnée d'une illustration SVG latérale en style dessin d'enfant qui représente l'objectif et sa chaîne montée de manière schématique. Depuis cette pile, vous pouvez monter un accessoire compatible ou démonter un accessoire existant directement depuis l'interface. Le sélecteur d'objectif n'affiche que les objectifs éligibles (possédés, favoris ou à acheter, non retirés), avec un message `Aucun objectif éligible (possédé, favori ou à acheter, non retiré).` si aucun ne correspond.
+- un assistant de montage interactif qui affiche la pile visuelle de chaque objectif (bloc objectif en bas, connecteurs, accessoires montés colorés par rôle, bouton d'ajout en haut), accompagnée d'une illustration SVG latérale en style dessin d'enfant qui représente l'objectif et sa chaîne montée de manière schématique, avec un seul connecteur entre deux éléments consécutifs. Depuis cette pile, vous pouvez monter un accessoire compatible ou démonter un accessoire existant directement depuis l'interface. Le sélecteur d'objectif n'affiche que les objectifs éligibles (possédés, favoris ou à acheter, non retirés), avec un message `Aucun objectif éligible (possédé, favori ou à acheter, non retiré).` si aucun ne correspond.
 
-Dans le formulaire `Filtres & bagues`, le rôle et les interfaces calculent maintenant automatiquement le type d’accessoire et le nom généré.
+Dans le formulaire `Filtres & bagues`, le rôle `general` conserve une identité manuelle : vous choisissez toujours librement le type d’accessoire et le nom.
+
+Pour les autres rôles, le rôle et les interfaces calculent automatiquement le type d’accessoire et le nom généré.
 
 Pour les adaptateurs, les règles sont les suivantes :
 

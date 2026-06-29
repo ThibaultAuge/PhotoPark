@@ -231,7 +231,6 @@ function ThreadedRing({
   height,
   rearDia,
   frontDia,
-  label,
 }: {
   cx: number;
   y: number;
@@ -239,7 +238,6 @@ function ThreadedRing({
   height: number;
   rearDia: number | null;
   frontDia: number | null;
-  label: string;
 }) {
   // Each ring is split into two stacked blocks, glued together
   const blockH = Math.round(height * 0.48);
@@ -385,7 +383,6 @@ function MagneticRing({
   y,
   width,
   height,
-  label,
   rearDia,
   frontDia,
 }: {
@@ -393,7 +390,6 @@ function MagneticRing({
   y: number;
   width: number;
   height: number;
-  label: string;
   rearDia: number | null;
   frontDia: number | null;
 }) {
@@ -870,7 +866,6 @@ export function FilterStackIllustration({
                   y={topY}
                   width={width}
                   height={ACC_H}
-                  label={acc.label}
                   rearDia={acc.rearDiameterMm}
                   frontDia={acc.frontDiameterMm}
                 />
@@ -885,7 +880,6 @@ export function FilterStackIllustration({
                 height={ACC_H}
                 rearDia={acc.rearDiameterMm}
                 frontDia={acc.frontDiameterMm}
-                label={acc.label}
               />
             );
           }
@@ -902,17 +896,6 @@ export function FilterStackIllustration({
             );
         }
       })}
-
-      {/* Connector from lens to first accessory */}
-      {mountedChain.length > 0 && (
-        <SVGConnector
-          cx={CX}
-          y1={lensTopY}
-          y2={accPositions[0].topY + ACC_H}
-          mountType={mountedChain[0].rearMountType}
-          diameter={mountedChain[0].rearDiameterMm}
-        />
-      )}
 
       {/* Lens */}
       <LensDrawing

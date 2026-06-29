@@ -13,6 +13,13 @@ GitHub ──push──> Portainer (clone + docker build + docker compose up -d)
 
 ## 1. Créer le stack dans Portainer
 
+### 0. Créer le volume externe
+
+Avant le premier déploiement, créer le volume Docker `photopark-data`.
+
+- Via Portainer : **Volumes > Add volume > Name = `photopark-data`**
+- Ou en CLI : `docker volume create photopark-data`
+
 1. Aller dans **Portainer > Stacks > Add stack**
 2. Onglet **Git**
 3. Remplir :
@@ -24,30 +31,26 @@ GitHub ──push──> Portainer (clone + docker build + docker compose up -d)
    | Compose path | `docker-compose.yml` |
    | Branch | `main` |
 
-4. Cliquer **Deploy the stack**
+4. Avant de cliquer sur **Deploy the stack**, renseigner les variables d'environnement du stack :
+
+   | Variable | Valeur | Requis |
+   |---|---|---|
+   | `APP_PASSWORD_HASH` | Généré via `npm run hash-password -- "mon-mot-de-passe"` | ✅ |
+   | `SESSION_SECRET` | Chaîne de 32+ caractères aléatoires | ✅ |
+   | `APP_PORT` | `8085` | ❌ (défaut) |
+
+5. Cliquer **Deploy the stack**
 
 > Portainer clone le repo, build l'image via le `Dockerfile`, puis lance le container.
 
 ---
-
-## 2. Configurer les variables d'env du stack
-
-Une fois le stack créé, aller dans **Stacks > photopark > Environment variables**.
-
-Ajouter :
-
-| Variable | Valeur | Requis |
-|---|---|---|
-| `APP_PASSWORD_HASH` | Généré via `npm run hash-password -- "mon-mot-de-passe"` | ✅ |
-| `SESSION_SECRET` | Chaîne de 32+ caractères aléatoires | ✅ |
-| `APP_PORT` | `8085` | ❌ (défaut) |
 
 > `APP_PASSWORD_HASH` et `SESSION_SECRET` sont les secrets applicatifs.
 > Ne les committez jamais dans le dépôt.
 
 ---
 
-## 3. Mettre à jour après un push
+## 2. Mettre à jour après un push
 
 ### Option A : Mise à jour manuelle (recommandé)
 
@@ -69,7 +72,7 @@ Si un jour ton serveur est accessible depuis l'extérieur, tu peux activer le **
 
 ---
 
-## 4. Premier déploiement
+## 3. Premier déploiement
 
 ```bash
 # 1. Pousser le code sur GitHub

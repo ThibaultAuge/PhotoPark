@@ -54,6 +54,24 @@ const retiredBody: Body = {
   retired: true,
 };
 
+const compactBody: Body = {
+  ...baseBody,
+  id: "body-3",
+  brandId: "brand-3",
+  brand: "Olympus",
+  mountId: null,
+  mount: null,
+  name: "Tough TG-6",
+  label: "Olympus Tough TG-6",
+  bodyType: "compact",
+  isInterchangeableLens: false,
+  sensorFormat: "CMOS",
+  isFavorite: false,
+  isNextPurchase: false,
+  isOwned: true,
+  retired: false,
+};
+
 describe("filterBodies", () => {
   /**
    * Verifies that default body filters start with no active constraints
@@ -82,11 +100,13 @@ describe("filterBodies", () => {
    * Verifies that structural filters match exact brand, mount, type, and format
    */
   test("filters by brand, mount, sensor format and body type", () => {
-    const bodies = [baseBody, retiredBody];
+    const bodies = [baseBody, retiredBody, compactBody];
     expect(filterBodies(bodies, { ...defaultBodyFilters, brand: "brand-2" })).toEqual([retiredBody]);
     expect(filterBodies(bodies, { ...defaultBodyFilters, mount: "mount-1" })).toEqual([baseBody]);
-    expect(filterBodies(bodies, { ...defaultBodyFilters, sensorFormat: "FULL_FRAME" })).toEqual(bodies);
+    expect(filterBodies(bodies, { ...defaultBodyFilters, sensorFormat: "FULL_FRAME" })).toEqual([baseBody, retiredBody]);
+    expect(filterBodies(bodies, { ...defaultBodyFilters, sensorFormat: "CMOS" })).toEqual([compactBody]);
     expect(filterBodies(bodies, { ...defaultBodyFilters, bodyType: "dslr" })).toEqual([retiredBody]);
+    expect(filterBodies(bodies, { ...defaultBodyFilters, bodyType: "compact" })).toEqual([compactBody]);
   });
 
   /**

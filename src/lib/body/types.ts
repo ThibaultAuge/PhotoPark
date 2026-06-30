@@ -1,7 +1,7 @@
 import type { LensBrand, LensMount } from "@/lib/lens/types";
 
-export type BodyType = "mirrorless" | "dslr";
-export type BodySensorFormat = "FULL_FRAME" | "APS_C" | "MICRO_FOUR_THIRDS" | "MEDIUM_FORMAT" | "OTHER";
+export type BodyType = "mirrorless" | "dslr" | "compact";
+export type BodySensorFormat = "FULL_FRAME" | "APS_C" | "MICRO_FOUR_THIRDS" | "MEDIUM_FORMAT" | "CMOS" | "OTHER";
 
 export type Body = {
   id: string;

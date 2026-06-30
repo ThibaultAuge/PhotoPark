@@ -96,7 +96,9 @@ describe("body utils", () => {
   test("returns localized labels for body type and sensor format", () => {
     expect(getBodyTypeLabel("mirrorless")).toBe("Hybride");
     expect(getBodyTypeLabel("dslr")).toBe("Reflex");
+    expect(getBodyTypeLabel("compact")).toBe("Compact");
     expect(getBodySensorFormatLabel("MICRO_FOUR_THIRDS")).toBe("Micro 4/3");
+    expect(getBodySensorFormatLabel("CMOS")).toBe("CMOS");
     expect(getBodySensorFormatLabel("OTHER")).toBe("Autre");
   });
 

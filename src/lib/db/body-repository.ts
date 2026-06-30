@@ -24,9 +24,9 @@ function initializeBodySchema(database: Database.Database) {
       mountId TEXT REFERENCES mounts(id) ON UPDATE CASCADE ON DELETE RESTRICT,
       name TEXT NOT NULL,
       label TEXT NOT NULL,
-      bodyType TEXT NOT NULL CHECK(bodyType IN ('mirrorless', 'dslr')),
+      bodyType TEXT NOT NULL CHECK(bodyType IN ('mirrorless', 'dslr', 'compact')),
       isInterchangeableLens INTEGER NOT NULL DEFAULT 1,
-      sensorFormat TEXT NOT NULL CHECK(sensorFormat IN ('FULL_FRAME', 'APS_C', 'MICRO_FOUR_THIRDS', 'MEDIUM_FORMAT', 'OTHER')),
+      sensorFormat TEXT NOT NULL CHECK(sensorFormat IN ('FULL_FRAME', 'APS_C', 'MICRO_FOUR_THIRDS', 'MEDIUM_FORMAT', 'CMOS', 'OTHER')),
       megapixels REAL,
       isoMin INTEGER,
       isoMax INTEGER,
@@ -50,6 +50,65 @@ function initializeBodySchema(database: Database.Database) {
     CREATE INDEX IF NOT EXISTS idx_bodies_brand ON bodies(brandId);
     CREATE INDEX IF NOT EXISTS idx_bodies_mount ON bodies(mountId);
     CREATE INDEX IF NOT EXISTS idx_bodies_status ON bodies(isFavorite, isNextPurchase, isOwned, retired);
+  `);
+
+  ensureBodyEnumCompatibility(database);
+}
+
+function ensureBodyEnumCompatibility(database: Database.Database) {
+  const table = database.prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'bodies'").get() as { sql?: string } | undefined;
+  const sql = table?.sql?.toLowerCase() ?? "";
+
+  if (sql.includes("'compact'") && sql.includes("'cmos'")) return;
+
+  const legacyTableName = `bodies_legacy_${Date.now()}`;
+  database.exec(`
+    BEGIN;
+    ALTER TABLE bodies RENAME TO ${legacyTableName};
+    CREATE TABLE bodies (
+      id TEXT PRIMARY KEY,
+      brandId TEXT NOT NULL REFERENCES brands(id) ON UPDATE CASCADE ON DELETE RESTRICT,
+      mountId TEXT REFERENCES mounts(id) ON UPDATE CASCADE ON DELETE RESTRICT,
+      name TEXT NOT NULL,
+      label TEXT NOT NULL,
+      bodyType TEXT NOT NULL CHECK(bodyType IN ('mirrorless', 'dslr', 'compact')),
+      isInterchangeableLens INTEGER NOT NULL DEFAULT 1,
+      sensorFormat TEXT NOT NULL CHECK(sensorFormat IN ('FULL_FRAME', 'APS_C', 'MICRO_FOUR_THIRDS', 'MEDIUM_FORMAT', 'CMOS', 'OTHER')),
+      megapixels REAL,
+      isoMin INTEGER,
+      isoMax INTEGER,
+      priceEur REAL,
+      weightG REAL,
+      burstFps REAL,
+      videoSpecs TEXT,
+      batteryLifeShots INTEGER,
+      hasIbis INTEGER NOT NULL DEFAULT 0,
+      hasDualCardSlot INTEGER NOT NULL DEFAULT 0,
+      isWeatherSealed INTEGER NOT NULL DEFAULT 0,
+      hasArticulatedScreen INTEGER NOT NULL DEFAULT 0,
+      notes TEXT,
+      isFavorite INTEGER NOT NULL DEFAULT 0,
+      isNextPurchase INTEGER NOT NULL DEFAULT 0,
+      isOwned INTEGER NOT NULL DEFAULT 0,
+      retired INTEGER NOT NULL DEFAULT 0,
+      createdAt TEXT NOT NULL,
+      updatedAt TEXT NOT NULL
+    );
+    INSERT INTO bodies (
+      id, brandId, mountId, name, label, bodyType, isInterchangeableLens, sensorFormat, megapixels, isoMin, isoMax,
+      priceEur, weightG, burstFps, videoSpecs, batteryLifeShots, hasIbis, hasDualCardSlot, isWeatherSealed,
+      hasArticulatedScreen, notes, isFavorite, isNextPurchase, isOwned, retired, createdAt, updatedAt
+    )
+    SELECT
+      id, brandId, mountId, name, label, bodyType, isInterchangeableLens, sensorFormat, megapixels, isoMin, isoMax,
+      priceEur, weightG, burstFps, videoSpecs, batteryLifeShots, hasIbis, hasDualCardSlot, isWeatherSealed,
+      hasArticulatedScreen, notes, isFavorite, isNextPurchase, isOwned, retired, createdAt, updatedAt
+    FROM ${legacyTableName};
+    DROP TABLE ${legacyTableName};
+    CREATE INDEX IF NOT EXISTS idx_bodies_brand ON bodies(brandId);
+    CREATE INDEX IF NOT EXISTS idx_bodies_mount ON bodies(mountId);
+    CREATE INDEX IF NOT EXISTS idx_bodies_status ON bodies(isFavorite, isNextPurchase, isOwned, retired);
+    COMMIT;
   `);
 }
 

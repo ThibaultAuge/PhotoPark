@@ -23,7 +23,14 @@ export function normalizeBodyInput(input: BodyInput, refs: { brand: string; moun
 }
 
 export function getBodyTypeLabel(bodyType: BodyType) {
-  return bodyType === "mirrorless" ? "Hybride" : "Reflex";
+  switch (bodyType) {
+    case "mirrorless":
+      return "Hybride";
+    case "dslr":
+      return "Reflex";
+    default:
+      return "Compact";
+  }
 }
 
 export function getBodySensorFormatLabel(sensorFormat: BodySensorFormat) {
@@ -36,6 +43,8 @@ export function getBodySensorFormatLabel(sensorFormat: BodySensorFormat) {
       return "Micro 4/3";
     case "MEDIUM_FORMAT":
       return "Moyen format";
+    case "CMOS":
+      return "CMOS";
     default:
       return "Autre";
   }

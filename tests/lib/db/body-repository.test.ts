@@ -142,6 +142,35 @@ describe("body repository", () => {
   });
 
   /**
+   * Verifies that repository persists compact type and CMOS sensor format
+   */
+  test("createBody accepts compact and CMOS values", async () => {
+    useIsolatedDatabasePath();
+    vi.resetModules();
+
+    const { createBody, listBodies } = await import("../../../src/lib/db/body-repository");
+
+    const created = createBody(validBodyInput({
+      name: " Tough TG-6 ",
+      bodyType: "compact",
+      isInterchangeableLens: false,
+      mountId: null,
+      sensorFormat: "CMOS",
+    }));
+
+    const stored = listBodies().find((body) => body.id === created.id);
+    expect(stored).toMatchObject({
+      name: "Tough TG-6",
+      label: "Canon Tough TG-6",
+      bodyType: "compact",
+      sensorFormat: "CMOS",
+      isInterchangeableLens: false,
+      mountId: null,
+      mount: null,
+    });
+  });
+
+  /**
    * Verifies that refreshBodyLabels updates stored labels after brand renames
    */
   test("refreshBodyLabels regenerates labels from renamed brands", async () => {

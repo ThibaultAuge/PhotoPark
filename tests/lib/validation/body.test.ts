@@ -39,6 +39,37 @@ describe("body validation", () => {
   });
 
   /**
+   * Verifies that compact bodies with CMOS sensor format are accepted
+   */
+  test("accepts compact body type and CMOS sensor format", () => {
+    expect(bodySchema.parse({
+      brandId: BRAND_ID,
+      mountId: null,
+      name: "Tough TG-6",
+      bodyType: "compact",
+      isInterchangeableLens: false,
+      sensorFormat: "CMOS",
+      megapixels: 12,
+      isoMin: 100,
+      isoMax: 12800,
+      priceEur: 499,
+      weightG: 253,
+      burstFps: 20,
+      videoSpecs: "4K30",
+      batteryLifeShots: 340,
+      hasIbis: false,
+      hasDualCardSlot: false,
+      isWeatherSealed: true,
+      hasArticulatedScreen: false,
+      notes: null,
+      isFavorite: false,
+      isNextPurchase: false,
+      isOwned: true,
+      retired: false,
+    }).sensorFormat).toBe("CMOS");
+  });
+
+  /**
    * Verifies that interchangeable bodies require a mount identifier
    */
   test("rejects interchangeable body without mount", () => {
@@ -191,16 +222,16 @@ describe("body validation", () => {
     formData.set("brandId", BRAND_ID);
     formData.set("mountId", "");
     formData.set("name", " PowerShot G7 X ");
-    formData.set("bodyType", "mirrorless");
-    formData.set("sensorFormat", "OTHER");
+    formData.set("bodyType", "compact");
+    formData.set("sensorFormat", "CMOS");
 
     expect(parseBodyFormData(formData)).toEqual({
       brandId: BRAND_ID,
       mountId: null,
       name: "PowerShot G7 X",
-      bodyType: "mirrorless",
+      bodyType: "compact",
       isInterchangeableLens: false,
-      sensorFormat: "OTHER",
+      sensorFormat: "CMOS",
       megapixels: null,
       isoMin: null,
       isoMax: null,

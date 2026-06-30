@@ -1,23 +1,14 @@
-"use client";
+import React from "react";
+import { redirect } from "next/navigation";
+import { LoginForm } from "@/components/auth/LoginForm";
+import { hasValidSession } from "@/lib/auth/session";
 
-import { useActionState } from "react";
-import { loginAction } from "@/app/actions/auth-actions";
+export default async function LoginPage() {
+  if (await hasValidSession()) redirect("/lenses");
 
-export default function LoginPage() {
-  const [state, formAction, pending] = useActionState<{ error?: string }, FormData>(loginAction, {});
   return (
     <main className="login-shell">
-      <form action={formAction} className="login-card">
-        <p className="eyebrow">Accès privé</p>
-        <h1>PhotoPark</h1>
-        <p>Entrez le mot de passe partagé pour accéder à l’inventaire.</p>
-        <label>
-          Mot de passe
-          <input name="password" type="password" required autoFocus autoComplete="current-password" />
-        </label>
-        {state.error ? <p className="form-error" role="alert">{state.error}</p> : null}
-        <button className="primary-button" disabled={pending}>{pending ? "Connexion…" : "Se connecter"}</button>
-      </form>
+      <LoginForm />
     </main>
   );
 }

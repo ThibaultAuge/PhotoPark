@@ -15,7 +15,7 @@ Application Next.js 15 / TypeScript (`photopark`) pour inventorier, visualiser e
    - `/settings/options` — CRUD options objectifs (code + description + brandId), filtrées par marque sélectionnée
    - `/settings/options/groups` — CRUD groupes d'options (slug, name, type: "flag"/"value") + assignation d'options par marque
    - `/settings/accessory-types` — CRUD types d'accessoires
-   - `/login` — Écran de connexion
+   - `/login` — Page serveur de connexion ; redirige directement vers `/lenses` si `hasValidSession()` est déjà vrai, sinon rend le client `LoginForm`
 - **Navigation :** `AppNav` (barre supérieure avec liens + bouton Déconnexion) inclut `/lenses`, `/bodies` et `/accessories`. `SubNav` est réutilisée pour `/lenses`, `/accessories` et `/settings`. Le layout `/accessories` expose deux entrées de sous-catégorie : `Sacs & poches` (`/accessories`) et `Filtres & bagues` (`/accessories/filters`).
 - **État partagé via LensProvider :** Contexte React (`useLensContext`) créé dans le layout `/lenses`, qui charge les données côté serveur (`listLenses()` + `listReferenceData()`). Le contexte expose : `filters`, `setFilters`, `resetFilters`, `selectedIds`, `toggleSelected`, `clearSelection`, `hiddenIds`, `hideLens`, `editingLens`, `setEditingLens`, `showCreate`, `setShowCreate`, `initialLenses`, `filteredLenses`, `referenceData`. `filterLenses()` et `defaultFilters` sont exportés depuis `LensProvider.tsx` pour tests et usage direct.
 - **État partagé via BodyProvider :** Contexte React (`useBodyContext`) créé dans le layout `/bodies`, qui charge les données côté serveur (`listBodies()` + `listBodyReferenceData()`). Le contexte expose : `filters`, `setFilters`, `resetFilters`, `selectedIds`, `toggleSelected`, `clearSelection`, `detailBody`, `setDetailBody`, `editingBody`, `setEditingBody`, `showCreate`, `setShowCreate`, `initialBodies`, `filteredBodies`, `referenceData`. `filterBodies()` et `defaultBodyFilters` sont exportés pour tests et usage direct.
@@ -41,7 +41,8 @@ Application Next.js 15 / TypeScript (`photopark`) pour inventorier, visualiser e
 
 ## Relevant Files
 - `src/app/page.tsx` — redirige vers `/lenses`.
-- `src/app/login/page.tsx` — écran de connexion.
+- `src/app/login/page.tsx` — page serveur de connexion ; redirige les sessions valides vers `/lenses` puis rend `LoginForm` sinon.
+- `src/components/auth/LoginForm.tsx` — formulaire client interactif de connexion pour `/login`.
 - `src/app/(authenticated)/layout.tsx` — vérifie `hasValidSession()`, rend `AppNav` + contenu.
 - `src/app/(authenticated)/lenses/layout.tsx` — charge objectifs + référentiels côté serveur, rend `LensProvider` + `SubNav` + contenu.
 - `src/app/(authenticated)/lenses/page.tsx` — rend `LensListPage`.
@@ -84,6 +85,7 @@ Application Next.js 15 / TypeScript (`photopark`) pour inventorier, visualiser e
 - `src/lib/validation/reference.ts` — validation référentiels (inclut `brandDomainSchema` avec `bodies`, `optionGroupSchema`, `parseOptionGroupFormData`).
 - `src/components/layout/AppNav.tsx` — barre de navigation principale avec liens + Déconnexion.
 - `src/components/layout/SubNav.tsx` — sous-navigation réutilisable.
+- `src/components/auth/LoginForm.tsx` — composant client dédié au formulaire de connexion ; à modifier pour la logique UI interactive de `/login`, pas `src/app/login/page.tsx`.
 - `src/components/lens/LensProvider.tsx` — contexte React pour état partagé (filtres, sélection, masquage, formulaire) entre les pages `/lenses`. Exporte aussi `filterLenses()` (pure function) et `defaultFilters` pour tests.
 - `src/components/body/BodyProvider.tsx` — contexte React pour état partagé (filtres, sélection, modales détail/formulaire) entre les pages `/bodies`. Exporte aussi `filterBodies()` et `defaultBodyFilters`.
 - `src/components/body/BodyListPage.tsx` — consomme `BodyProvider`, rend toolbar, filtres, tableau/cartes, `BodyComparePopup`, `BodyDetailModal` et `BodyForm`.
@@ -137,6 +139,7 @@ Application Next.js 15 / TypeScript (`photopark`) pour inventorier, visualiser e
 - **Pour tout affichage lié aux objectifs :** utiliser `useLensContext()` depuis `@/components/lens/LensProvider` pour accéder aux filtres, sélection, masquage et données. Ne pas dupliquer l'état.
 - **Pour tout affichage lié aux boîtiers :** utiliser `useBodyContext()` depuis `@/components/body/BodyProvider` pour accéder aux filtres, sélection, modales et données. Ne pas dupliquer l'état.
 - **Pour tout affichage lié aux accessoires :** utiliser `useAccessoryContext()` depuis `@/components/accessory/AccessoryProvider` pour accéder aux filtres, modales détail/édition/création et données. Ne pas dupliquer l'état.
+- **Pour modifier `/login` :** conserver `src/app/login/page.tsx` comme page serveur légère qui vérifie `hasValidSession()` et redirige les utilisateurs déjà authentifiés vers `/lenses`. Mettre toute logique interactive/état client du formulaire dans `src/components/auth/LoginForm.tsx` ; ne pas retransformer la page en composant client juste pour le formulaire.
 - **Pour créer/modifier/supprimer un objectif :** utiliser les actions serveur dans `src/app/actions/lens-actions.ts` (`createLensAction`, `updateLensAction`, `deleteLensAction`). Elles appliquent auth, CSRF et `revalidatePath("/lenses", "layout")`. Une vérification de doublon est effectuée dans la transaction côté dépôt : si un objectif avec les mêmes `brandId`, `focalMinMm`, `focalMaxMm`, `maxApertureAtMinFocal`, `maxApertureAtMaxFocal`, `mountId` existe déjà, un `DuplicateLensError` est levé (message contenant le libellé existant). Exception actuelle : `updateLens()` autorise les modifications de champs non identitaires sur une ligne legacy déjà dupliquée, tant que cette mise à jour conserve exactement les mêmes champs d'identité ; en revanche, toute modification des champs d'identité qui entrerait en collision avec une autre ligne reste rejetée. L'erreur est attrapée par le formulaire client (`submitAndClose` try/catch) et affichée dans le `<div className="form-error">` — le formulaire reste ouvert pour permettre à l'utilisateur de corriger ou annuler.
 - **Pour créer/modifier/supprimer un boîtier :** utiliser `src/app/actions/body-actions.ts` (`createBodyAction`, `updateBodyAction`, `deleteBodyAction`). Elles appliquent auth, CSRF et revalident `/bodies`.
 - **Pour créer/modifier/supprimer un accessoire ou un type d'accessoire :** utiliser `src/app/actions/accessory-actions.ts` (`createAccessoryAction`, `updateAccessoryAction`, `deleteAccessoryAction`, `createAccessoryTypeAction`, `updateAccessoryTypeAction`, `deleteAccessoryTypeAction`). Elles appliquent auth, CSRF, et revalident le layout `/accessories` partagé par `/accessories` et `/accessories/filters`, ainsi que la page de paramètres concernée pour les types.

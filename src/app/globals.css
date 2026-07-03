@@ -913,3 +913,158 @@ small { color: var(--muted); }
   .app-nav-links { gap: 0; }
   .app-nav-link { font-size: 0.75rem; padding: 5px 8px; }
 }
+
+/* ============ Inventory Page ============ */
+
+.inventory-page {
+  display: grid;
+  gap: 18px;
+}
+
+.inventory-group {
+  display: grid;
+  gap: 18px;
+}
+
+.inventory-group-title {
+  align-items: flex-start;
+}
+
+.inventory-group-title-primary {
+  margin-top: 0;
+}
+
+.inventory-section {
+  padding: 0;
+  overflow: hidden;
+}
+
+.inventory-section .empty-state {
+  margin: 0;
+  padding: 20px;
+}
+
+.inventory-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 18px 20px 8px;
+  border-bottom: 1px solid var(--line);
+}
+
+.inventory-section-header h3 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.inventory-count {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.inventory-no-weight-note {
+  font-weight: 400;
+  color: var(--muted);
+}
+
+.inventory-table-wrapper {
+  padding: 4px 8px 8px;
+}
+
+.inventory-table-wrapper table {
+  min-width: 0;
+}
+
+.inventory-subtotal-row td {
+  border-top: 2px solid var(--line);
+  font-weight: 700;
+  font-size: 0.9rem;
+  padding-top: 16px;
+}
+
+.inventory-card {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 4px 12px;
+  padding: 14px 16px;
+  align-items: center;
+}
+
+.inventory-card-brand {
+  font-size: 0.8rem;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.inventory-card-label {
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
+.inventory-card-weight {
+  grid-column: 2;
+  grid-row: 1 / 3;
+  align-self: center;
+}
+
+.inventory-subtotal-card {
+  border-top: 2px solid var(--line);
+  font-size: 0.95rem;
+  margin-top: 4px;
+}
+
+.inventory-grand-total-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: center;
+}
+
+.inventory-grand-total {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 20px 32px;
+  min-width: 300px;
+  justify-content: center;
+}
+
+.inventory-grand-total-label {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.inventory-grand-total-value {
+  font-size: 1.6rem;
+  color: var(--primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.inventory-grand-total-note {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--muted);
+  text-align: center;
+}
+
+@media (max-width: 820px) {
+  .inventory-section-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .inventory-count {
+    white-space: normal;
+  }
+
+  .inventory-grand-total {
+    min-width: 0;
+    width: 100%;
+    flex-direction: column;
+    text-align: center;
+  }
+}

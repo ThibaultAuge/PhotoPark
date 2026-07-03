@@ -8,6 +8,7 @@ const links = [
   { href: "/lenses", label: "Objectifs" },
   { href: "/bodies", label: "Boîtiers" },
   { href: "/accessories", label: "Accessoires" },
+  { href: "/inventory", label: "Inventaire" },
   { href: "/settings/brands", label: "Paramètres" },
 ] as const;
 

@@ -194,7 +194,7 @@ export function mountAccessoryOnLens(accessoryId: string, lensId: string) {
     const mapped = mapAccessoryRow(accessory);
     const refs = resolveAccessoryRefs(database, mapped as AccessoryInput);
     const input: AccessoryInput = { ...mapped, mountedOnLensId: lensId, mountedOnAccessoryId: null };
-    assertAccessoryMountConsistency(database, null, input, refs.typeCategory);
+    assertAccessoryMountConsistency(database, accessoryId, input, refs.typeCategory);
     // If the accessory had descendants from a previous mount location, unmount them first
     unmountDescendants(database, accessoryId);
     database.prepare("UPDATE accessories SET mountedOnLensId = ?, mountedOnAccessoryId = NULL, updatedAt = ? WHERE id = ?")
@@ -215,7 +215,7 @@ export function mountAccessoryOnAccessory(accessoryId: string, parentAccessoryId
     const mapped = mapAccessoryRow(accessory);
     const refs = resolveAccessoryRefs(database, mapped as AccessoryInput);
     const input: AccessoryInput = { ...mapped, mountedOnLensId: null, mountedOnAccessoryId: parentAccessoryId };
-    assertAccessoryMountConsistency(database, null, input, refs.typeCategory);
+    assertAccessoryMountConsistency(database, accessoryId, input, refs.typeCategory);
     // If the accessory had descendants from a previous mount location, unmount them first
     unmountDescendants(database, accessoryId);
     database.prepare("UPDATE accessories SET mountedOnAccessoryId = ?, mountedOnLensId = NULL, updatedAt = ? WHERE id = ?")
@@ -343,10 +343,17 @@ function deriveAccessoryPersistenceInput(database: Database.Database, input: Acc
 }
 
 function assertAccessoryMountConsistency(database: Database.Database, currentId: string | null, input: AccessoryInput, typeCategory: AccessoryType["category"]) {
+  assertMountEndpointMetadata(input.rearMountType, input.rearDiameterMm, "arrière");
+  assertMountEndpointMetadata(input.frontMountType, input.frontDiameterMm, "avant");
+
   if (typeCategory !== "filter") {
     if (input.mountedOnLensId || input.mountedOnAccessoryId) throw new Error("Seules les pièces de filtres/bagues peuvent être montées sur un objectif ou une autre pièce.");
+    if (input.rearMountType !== "none" || input.frontMountType !== "none" || input.rearDiameterMm !== null || input.frontDiameterMm !== null) {
+      throw new Error("Les accessoires hors filtres/bagues ne doivent pas définir d'interface de montage.");
+    }
     return;
   }
+
   if (input.mountedOnLensId && input.mountedOnAccessoryId) throw new Error("Une pièce ne peut être montée qu'à un seul endroit.");
   if (!input.isOwned && (input.mountedOnLensId || input.mountedOnAccessoryId)) throw new Error("Une pièce non possédée ne peut pas être marquée comme montée.");
   if (input.retired && (input.mountedOnLensId || input.mountedOnAccessoryId)) throw new Error("Une pièce retirée ne peut pas rester montée.");
@@ -390,6 +397,12 @@ function hasAccessoryCycle(database: Database.Database, currentId: string, paren
 function assertMountMatchesLens(lensDiameter: number, input: Pick<AccessoryInput, "rearMountType" | "rearDiameterMm">) {
   if (input.rearMountType !== "threaded") throw new Error("La première pièce montée sur un objectif doit être filetée.");
   if (input.rearDiameterMm !== lensDiameter) throw new Error("Le diamètre arrière de la pièce ne correspond pas au diamètre de l'objectif.");
+}
+
+function assertMountEndpointMetadata(type: AccessoryInput["rearMountType"], diameter: number | null, side: "arrière" | "avant") {
+  if (type === "none") return;
+  if (diameter === null) throw new Error(`Le diamètre ${side} est requis pour une liaison filetée ou magnétique.`);
+  if (diameter <= 0) throw new Error(`Le diamètre ${side} doit être supérieur à 0.`);
 }
 
 function assertMountMatchesAccessory(parent: Pick<Accessory, "frontMountType" | "frontDiameterMm">, input: Pick<AccessoryInput, "rearMountType" | "rearDiameterMm">) {

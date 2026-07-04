@@ -108,7 +108,7 @@ export function deriveFilterAccessoryPresentation(draft: FilterAccessoryDraft) {
     };
   }
 
-  if (draft.rearMountType === "threaded" && draft.frontMountType === "magnetic" && rearDiameter !== null && frontDiameter !== null) {
+  if ((draft.rearMountType === "threaded" || draft.rearMountType === "magnetic") && draft.frontMountType === "magnetic" && rearDiameter !== null && frontDiameter !== null) {
     if (rearDiameter === frontDiameter) {
       return {
         typeName: "Bague magnétique",
@@ -128,7 +128,7 @@ export function deriveFilterAccessoryPresentation(draft: FilterAccessoryDraft) {
     typeName: null,
     name: "",
     valid: false as const,
-    reason: "Combinaison non prise en charge. Utilise uniquement vis→vis (diamètres différents) ou vis→magnétique.",
+    reason: "Combinaison non prise en charge. Utilise uniquement vis→vis (diamètres différents), vis→magnétique ou magnétique→magnétique.",
   };
 }
 

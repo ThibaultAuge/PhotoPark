@@ -388,7 +388,7 @@ describe("AccessoryForm", () => {
 
     expect(createAccessoryAction).not.toHaveBeenCalled();
     expect(stateSetters[0]).toHaveBeenCalledWith(
-      "Combinaison non prise en charge. Utilise uniquement vis→vis (diamètres différents) ou vis→magnétique.",
+      "Combinaison non prise en charge. Utilise uniquement vis→vis (diamètres différents), vis→magnétique ou magnétique→magnétique.",
     );
   });
 

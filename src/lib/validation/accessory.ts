@@ -41,18 +41,25 @@ export const accessorySchema = z.object({
   if (value.mountedOnLensId && value.mountedOnAccessoryId) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["mountedOnLensId"], message: "Une pièce ne peut être montée qu'à un seul endroit." });
   }
-  if ((value.rearMountType === "threaded" || value.frontMountType === "threaded") && value.rearMountType === "threaded" && value.rearDiameterMm === null) {
-    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["rearDiameterMm"], message: "Le diamètre arrière est requis pour une liaison filetée." });
+  if ((value.rearMountType === "threaded" || value.rearMountType === "magnetic") && value.rearDiameterMm === null) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["rearDiameterMm"], message: "Le diamètre arrière est requis pour une liaison filetée ou magnétique." });
   }
-  if ((value.frontMountType === "threaded") && value.frontDiameterMm === null) {
-    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["frontDiameterMm"], message: "Le diamètre avant est requis pour une liaison filetée." });
+  if ((value.rearMountType === "threaded" || value.rearMountType === "magnetic") && value.rearDiameterMm !== null && value.rearDiameterMm <= 0) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["rearDiameterMm"], message: "Le diamètre arrière doit être supérieur à 0." });
+  }
+  if ((value.frontMountType === "threaded" || value.frontMountType === "magnetic") && value.frontDiameterMm === null) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["frontDiameterMm"], message: "Le diamètre avant est requis pour une liaison filetée ou magnétique." });
+  }
+  if ((value.frontMountType === "threaded" || value.frontMountType === "magnetic") && value.frontDiameterMm !== null && value.frontDiameterMm <= 0) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["frontDiameterMm"], message: "Le diamètre avant doit être supérieur à 0." });
   }
   if (value.filterRole === "adapter") {
     const isThreadedToThreaded = value.rearMountType === "threaded" && value.frontMountType === "threaded" && value.rearDiameterMm !== null && value.frontDiameterMm !== null && value.rearDiameterMm !== value.frontDiameterMm;
     const isThreadedToMagnetic = value.rearMountType === "threaded" && value.frontMountType === "magnetic" && value.rearDiameterMm !== null && value.frontDiameterMm !== null;
+    const isMagneticToMagnetic = value.rearMountType === "magnetic" && value.frontMountType === "magnetic" && value.rearDiameterMm !== null && value.frontDiameterMm !== null;
 
-    if (!isThreadedToThreaded && !isThreadedToMagnetic) {
-      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["frontMountType"], message: "Un adaptateur doit être en vis→vis (diamètres différents) ou vis→magnétique." });
+    if (!isThreadedToThreaded && !isThreadedToMagnetic && !isMagneticToMagnetic) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["frontMountType"], message: "Un adaptateur doit être en vis→vis (diamètres différents), vis→magnétique ou magnétique→magnétique." });
     }
   }
 });

@@ -63,6 +63,38 @@ describe("deriveFilterAccessoryPresentation", () => {
     });
   });
 
+  test("derives a magnetic reduction ring from magnetic to magnetic diameters", () => {
+    expect(deriveFilterAccessoryPresentation({
+      filterRole: "adapter",
+      rearMountType: "magnetic",
+      rearDiameterMm: 82,
+      frontMountType: "magnetic",
+      frontDiameterMm: 95,
+      supportsMagneticHood: false,
+      filterStrength: null,
+    })).toMatchObject({
+      typeName: "Bague de réduction magnétique",
+      name: "Bague de réduction magnétique 82→95 mm",
+      valid: true,
+    });
+  });
+
+  test("derives a magnetic ring from equal magnetic diameters", () => {
+    expect(deriveFilterAccessoryPresentation({
+      filterRole: "adapter",
+      rearMountType: "magnetic",
+      rearDiameterMm: 95,
+      frontMountType: "magnetic",
+      frontDiameterMm: 95,
+      supportsMagneticHood: true,
+      filterStrength: null,
+    })).toMatchObject({
+      typeName: "Bague magnétique",
+      name: "Bague magnétique 95 mm avec pare-soleil",
+      valid: true,
+    });
+  });
+
   test("rejects unsupported adapter interface combinations", () => {
     expect(deriveFilterAccessoryPresentation({
       filterRole: "adapter",

@@ -132,6 +132,43 @@ describe("accessory validation", () => {
   });
 
   /**
+   * Verifies that magnetic interfaces also require their diameter metadata.
+   */
+  test("accessorySchema rejects magnetic interfaces without diameter", () => {
+    expect(() => accessorySchema.parse({
+      brandId: "11111111-1111-4111-8111-111111111111",
+      typeId: "22222222-2222-4222-8222-222222222222",
+      name: "Filtre magnétique",
+      capacityLiters: null,
+      capacityBodies: null,
+      capacityLenses: null,
+      fitsLaptop: false,
+      fitsTripod: false,
+      widthMm: null,
+      heightMm: null,
+      depthMm: null,
+      weightG: null,
+      priceEur: null,
+      carryStyleNotes: null,
+      capacityNotes: null,
+      storageLocation: "bag",
+      mountedOnLensId: null,
+      mountedOnAccessoryId: null,
+      rearMountType: "magnetic",
+      rearDiameterMm: null,
+      frontMountType: "magnetic",
+      frontDiameterMm: null,
+      filterRole: "filter",
+      filterStrength: "CPL",
+      supportsMagneticHood: false,
+      isFavorite: false,
+      isNextPurchase: false,
+      isOwned: false,
+      retired: false,
+    })).toThrow(ZodError);
+  });
+
+  /**
    * Verifies that unsupported adapter interface combinations are rejected
    */
   test("accessorySchema rejects adapter combinations that do not make sense", () => {
@@ -158,6 +195,85 @@ describe("accessory validation", () => {
       rearDiameterMm: 77,
       frontMountType: "threaded",
       frontDiameterMm: 77,
+      filterRole: "adapter",
+      filterStrength: null,
+      supportsMagneticHood: false,
+      isFavorite: false,
+      isNextPurchase: false,
+      isOwned: false,
+      retired: false,
+    })).toThrow(ZodError);
+  });
+
+  /**
+   * Verifies that magnetic-to-magnetic adapter rings are now accepted.
+   */
+  test("accessorySchema accepts magnetic-to-magnetic adapters", () => {
+    expect(accessorySchema.parse({
+      brandId: "11111111-1111-4111-8111-111111111111",
+      typeId: "22222222-2222-4222-8222-222222222222",
+      name: "Bague magnétique",
+      capacityLiters: null,
+      capacityBodies: null,
+      capacityLenses: null,
+      fitsLaptop: false,
+      fitsTripod: false,
+      widthMm: null,
+      heightMm: null,
+      depthMm: null,
+      weightG: null,
+      priceEur: null,
+      carryStyleNotes: null,
+      capacityNotes: null,
+      storageLocation: "bag",
+      mountedOnLensId: null,
+      mountedOnAccessoryId: null,
+      rearMountType: "magnetic",
+      rearDiameterMm: 82,
+      frontMountType: "magnetic",
+      frontDiameterMm: 95,
+      filterRole: "adapter",
+      filterStrength: null,
+      supportsMagneticHood: false,
+      isFavorite: false,
+      isNextPurchase: false,
+      isOwned: false,
+      retired: false,
+    })).toMatchObject({
+      rearMountType: "magnetic",
+      frontMountType: "magnetic",
+      rearDiameterMm: 82,
+      frontDiameterMm: 95,
+    });
+  });
+
+  /**
+   * Verifies that interface diameters must be strictly positive.
+   */
+  test("accessorySchema rejects zero interface diameters", () => {
+    expect(() => accessorySchema.parse({
+      brandId: "11111111-1111-4111-8111-111111111111",
+      typeId: "22222222-2222-4222-8222-222222222222",
+      name: "Bague magnétique",
+      capacityLiters: null,
+      capacityBodies: null,
+      capacityLenses: null,
+      fitsLaptop: false,
+      fitsTripod: false,
+      widthMm: null,
+      heightMm: null,
+      depthMm: null,
+      weightG: null,
+      priceEur: null,
+      carryStyleNotes: null,
+      capacityNotes: null,
+      storageLocation: "bag",
+      mountedOnLensId: null,
+      mountedOnAccessoryId: null,
+      rearMountType: "magnetic",
+      rearDiameterMm: 0,
+      frontMountType: "magnetic",
+      frontDiameterMm: 95,
       filterRole: "adapter",
       filterStrength: null,
       supportsMagneticHood: false,

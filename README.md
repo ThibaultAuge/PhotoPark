@@ -215,10 +215,12 @@ Pour les autres rôles, le rôle et les interfaces calculent automatiquement le 
 Pour les adaptateurs, les règles sont les suivantes :
 
 - `threaded → threaded` avec diamètres différents : `Bague de conversion` ;
-- `threaded → magnetic` avec diamètres différents : `Bague de réduction magnétique` ;
-- `threaded → magnetic` avec le même diamètre : `Bague magnétique`.
+- `threaded → magnetic` ou `magnetic → magnetic` avec le même diamètre : `Bague magnétique` ;
+- `threaded → magnetic` ou `magnetic → magnetic` avec des diamètres différents : `Bague de réduction magnétique`.
 
-Les combinaisons d’interfaces non prises en charge sont refusées par le formulaire et par la validation serveur.
+Les interfaces `threaded` et `magnetic` exigent chacune un diamètre strictement positif sur leur extrémité correspondante.
+
+Les combinaisons d’interfaces non prises en charge sont refusées par le formulaire et par la validation serveur, notamment `magnetic → threaded`.
 
 Si l’option de prise en charge du pare-soleil magnétique est cochée, le nom généré ajoute le suffixe `avec pare-soleil`.
 

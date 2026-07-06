@@ -2,11 +2,13 @@ import React from "react";
 import type { Accessory } from "@/lib/accessory/types";
 import { formatAccessoryCapacity, formatAccessoryInterface, formatAccessoryPrice, formatAccessoryWeight, formatBooleanFlag, formatFilterAccessoryLocation, isFilterAccessory } from "@/lib/accessory/accessory-utils";
 import { AccessoryStatusTags } from "@/components/accessory/AccessoryStatusTags";
+import { ActionMenu, ActionMenuButton } from "@/components/ui/ActionMenu";
 
 export function AccessoryTable({ accessories, lensLabels, accessoryMountIndex, showFilterColumns, onShowDetail, onEdit }: { accessories: Accessory[]; lensLabels: ReadonlyMap<string, string>; accessoryMountIndex: ReadonlyMap<string, Pick<Accessory, "mountedOnLensId" | "mountedOnAccessoryId">>; showFilterColumns: boolean; onShowDetail: (accessory: Accessory) => void; onEdit: (accessory: Accessory) => void }) {
 
   return (
-    <div className="card table-card">
+    <div className="card table-card table-card-with-actions">
+      <div className="table-scroll">
       <table>
         <thead>
           <tr>
@@ -19,7 +21,7 @@ export function AccessoryTable({ accessories, lensLabels, accessoryMountIndex, s
             {showFilterColumns ? null : <th>Poids</th>}
             <th>Prix</th>
             <th>Statuts</th>
-            <th>Actions</th>
+            <th className="actions-column">Actions</th>
           </tr>
         </thead>
         <tbody>
@@ -34,11 +36,12 @@ export function AccessoryTable({ accessories, lensLabels, accessoryMountIndex, s
               {isFilterAccessory(accessory) ? null : <td className="numeric-cell">{formatAccessoryWeight(accessory.weightG)}</td>}
               <td className="numeric-cell">{formatAccessoryPrice(accessory.priceEur)}</td>
               <td><AccessoryStatusTags accessory={accessory} /></td>
-              <td><div className="actions"><button type="button" className="ghost-button" onClick={() => onShowDetail(accessory)}>Voir</button><button type="button" className="ghost-button" onClick={() => onEdit(accessory)}>Modifier</button></div></td>
+              <td className="actions-cell"><ActionMenu label={`Actions pour ${accessory.label}`}><ActionMenuButton onClick={() => onShowDetail(accessory)}>Voir</ActionMenuButton><ActionMenuButton onClick={() => onEdit(accessory)}>Modifier</ActionMenuButton></ActionMenu></td>
             </tr>
           ))}
         </tbody>
       </table>
+      </div>
     </div>
   );
 }

@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import type { LensBrand, LensOption, OptionGroup, OptionGroupMember } from "@/lib/lens/types";
 import { createOptionGroupAction, updateOptionGroupAction, deleteOptionGroupAction, setOptionGroupMembersAction } from "@/app/actions/lens-actions";
+import { ActionMenu, ActionMenuButton } from "@/components/ui/ActionMenu";
 
 export function OptionGroupManager({
   groups,
@@ -57,16 +58,18 @@ export function OptionGroupManager({
                       <option value="flag">Oui / Non (drapeau)</option>
                       <option value="value">Valeur (affiche le code)</option>
                     </select>
-                    <button className="ghost-button" type="submit">OK</button>
-                    <button type="button" className="ghost-button" onClick={() => setEditingGroupId(null)}>Annuler</button>
+                     <button className="ghost-button" type="submit">OK</button>
+                     <button type="button" className="ghost-button" onClick={() => setEditingGroupId(null)}>Annuler</button>
                   </form>
                 ) : (
                   <div className="inline-form">
                     <span className="settings-item-label"><strong>{group.name}</strong> ({group.slug}) — {group.type === "flag" ? "Drapeau" : "Valeur"}</span>
-                    <button className="ghost-button" onClick={() => setEditingGroupId(group.id)}>Modifier</button>
-                    <form style={{ display: "inline" }} action={deleteOptionGroupAction.bind(null, group.id)}>
-                      <button className="danger-button" type="submit">Supprimer</button>
-                    </form>
+                     <ActionMenu label={`Actions pour ${group.name}`}>
+                       <ActionMenuButton onClick={() => setEditingGroupId(group.id)}>Modifier</ActionMenuButton>
+                       <form className="action-menu-form" action={deleteOptionGroupAction.bind(null, group.id)}>
+                         <ActionMenuButton type="submit" danger>Supprimer</ActionMenuButton>
+                       </form>
+                     </ActionMenu>
                   </div>
                 )}
               </div>

@@ -31,6 +31,7 @@ Application privée Next.js pour inventorier, filtrer, visualiser et comparer du
 - Comparaison de 2 à 5 boîtiers via une popup flottante et une modale dédiée.
 - Navigation multi-pages avec barre de navigation : Objectifs, Boîtiers, Accessoires, Paramètres.
 - Pages paramètres séparées pour les marques, les montures, les options, les groupes d’options et les types d’accessoires avec catégorie.
+- Actions d’inventaire et de paramètres regroupées dans un menu compact `…` pour réduire la largeur des colonnes d’actions et améliorer l’usage mobile.
 - Tests Vitest pour la validation et les helpers métier.
 
 Le schéma suivant résume le flux principal de l’application.
@@ -184,6 +185,7 @@ La page `/accessories` propose :
 
 - une liste en tableau sur desktop ;
 - des cartes sur mobile ;
+- un menu d’actions compact `…` sur chaque ligne ou carte pour ouvrir les actions `Voir`, `Modifier` ou `Supprimer` ;
 - des filtres par texte, marque, type, statut, compatibilité ordinateur portable et compatibilité trépied ;
 - une fenêtre de détail ;
 - des modales de création, modification et suppression.
@@ -203,6 +205,7 @@ La page `/accessories/filters` propose :
 
 - une liste en tableau sur desktop ;
 - des cartes sur mobile ;
+- un menu d’actions compact `…` sur chaque ligne ou carte pour regrouper les actions disponibles ;
 - l’affichage du libellé de l’objectif racine quand un accessoire est monté sur un objectif, même via une chaîne d’autres accessoires ; les chaînes cassées ou cycliques retombent sur un libellé générique `Monté` ;
 - l’affichage du prix sans poids dans les vues liste et carte ;
 - des filtres par texte, marque, type, statut, localisation et liaison ;
@@ -255,6 +258,7 @@ Elle propose :
 
 - une liste en tableau sur desktop ;
 - des cartes sur mobile ;
+- un menu d’actions compact `…` sur chaque ligne ou carte pour limiter la largeur des actions ;
 - des filtres par texte, marque, monture, format capteur, type et statut ;
 - une fenêtre de détail ;
 - des modales de création, modification et suppression ;
@@ -285,6 +289,14 @@ Chaque marque peut être assignée à un ou plusieurs domaines :
 - `accessories` pour les accessoires.
 
 Les formulaires et filtres n’affichent que les marques valides pour le domaine courant. Par exemple, un formulaire boîtier ne propose pas une marque limitée aux accessoires.
+
+## Navigation et actions rapides
+
+Dans les inventaires et dans les pages de paramètres, les actions par élément sont maintenant regroupées dans un bouton menu `…`.
+
+Ce menu compact remplace les anciens boutons inline répétés comme `Voir`, `Modifier`, `Supprimer` ou `OK`.
+
+Il réduit la largeur des colonnes d’actions en tableau et garde les cartes mobiles plus lisibles.
 
 ## Scripts
 

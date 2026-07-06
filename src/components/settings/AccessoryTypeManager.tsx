@@ -4,6 +4,7 @@ import React from "react";
 import { useRef, useState } from "react";
 import { createAccessoryTypeAction, deleteAccessoryTypeAction, updateAccessoryTypeAction } from "@/app/actions/accessory-actions";
 import type { AccessoryType } from "@/lib/accessory/types";
+import { ActionMenu, ActionMenuButton } from "@/components/ui/ActionMenu";
 
 export function AccessoryTypeManager({ types }: { types: AccessoryType[] }) {
   const formRef = useRef<HTMLFormElement>(null);
@@ -45,8 +46,10 @@ export function AccessoryTypeManager({ types }: { types: AccessoryType[] }) {
                   <option value="bag">Sacs & poches</option>
                   <option value="filter">Filtres & bagues</option>
                 </select>
-                <button className="ghost-button" type="submit">OK</button>
-                <button formAction={deleteAccessoryTypeAction.bind(null, type.id)} className="danger-button" type="submit">Supprimer</button>
+                <ActionMenu label={`Actions pour ${type.name}`}>
+                  <ActionMenuButton type="submit">OK</ActionMenuButton>
+                  <ActionMenuButton formAction={deleteAccessoryTypeAction.bind(null, type.id)} type="submit" danger>Supprimer</ActionMenuButton>
+                </ActionMenu>
               </form>
             ))}
           </div>

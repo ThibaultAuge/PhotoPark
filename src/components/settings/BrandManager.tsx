@@ -1,8 +1,10 @@
 "use client";
 
+import React from "react";
 import { useRef, useState } from "react";
 import type { BrandDomain, LensBrand } from "@/lib/lens/types";
 import { createBrandAction, updateBrandAction, deleteBrandAction } from "@/app/actions/lens-actions";
+import { ActionMenu, ActionMenuButton } from "@/components/ui/ActionMenu";
 
 export function BrandManager({ brands }: { brands: LensBrand[] }) {
   const formRef = useRef<HTMLFormElement>(null);
@@ -46,8 +48,10 @@ export function BrandManager({ brands }: { brands: LensBrand[] }) {
                 <label className="inline-checkbox"><input name="domains" type="checkbox" value="lenses" defaultChecked={hasDomain(brand.domains, "lenses")} /> Objectifs</label>
                 <label className="inline-checkbox"><input name="domains" type="checkbox" value="accessories" defaultChecked={hasDomain(brand.domains, "accessories")} /> Accessoires</label>
                 <label className="inline-checkbox"><input name="domains" type="checkbox" value="bodies" defaultChecked={hasDomain(brand.domains, "bodies")} /> Boîtiers</label>
-                <button className="ghost-button" type="submit">OK</button>
-                <button formAction={deleteBrandAction.bind(null, brand.id)} className="danger-button" type="submit">Supprimer</button>
+                <ActionMenu label={`Actions pour ${brand.name}`}>
+                  <ActionMenuButton type="submit">OK</ActionMenuButton>
+                  <ActionMenuButton formAction={deleteBrandAction.bind(null, brand.id)} type="submit" danger>Supprimer</ActionMenuButton>
+                </ActionMenu>
               </form>
             ))}
           </div>

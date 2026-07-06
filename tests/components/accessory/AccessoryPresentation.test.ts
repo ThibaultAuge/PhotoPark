@@ -94,7 +94,7 @@ const accessoryMountIndex = new Map([
 
 describe("accessory presentation", () => {
   /**
-   * Verifies that filter tables switch to interface-specific column labels
+   * Verifies that filter tables keep action-menu scroll wrappers and headers
    */
   test("AccessoryTable renders filter-specific headers", () => {
     const html = renderToStaticMarkup(createElement(AccessoryTable, {
@@ -106,6 +106,8 @@ describe("accessory presentation", () => {
       onEdit: vi.fn(),
     }));
 
+    expect(html).toContain('class="card table-card table-card-with-actions"');
+    expect(html).toContain('<div class="table-scroll"><table>');
     expect(html).toContain("Interfaces");
     expect(html).toContain("Localisation");
     expect(html).toContain("Rôle");
@@ -115,6 +117,9 @@ describe("accessory presentation", () => {
     expect(html).not.toContain("Poids");
   });
 
+  /**
+   * Verifies that empty filter tables keep the filter-specific headers visible
+   */
   test("AccessoryTable keeps filter headers when filter result is empty", () => {
     const html = renderToStaticMarkup(createElement(AccessoryTable, {
       accessories: [],

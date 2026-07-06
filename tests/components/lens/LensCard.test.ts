@@ -53,6 +53,8 @@ describe("LensCard", () => {
 
     expect(html).toContain("3 314.00 €");
     expect(html).toContain('class="numeric-value">3 314.00 €');
+    expect(html).toContain('aria-label="Actions pour Sigma E 24-70 f/2.8-4"');
+    expect(html).toContain("Supprimer");
   });
 
   test("renders zero price instead of empty dash", () => {

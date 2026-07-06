@@ -2,13 +2,15 @@ import React from "react";
 import type { Lens } from "@/lib/lens/types";
 import { deleteLensAction } from "@/app/actions/lens-actions";
 import { formatApertureRange, formatFocalRange, formatPrice, formatWeight, getLensKind } from "@/lib/lens/lens-utils";
+import { ActionMenu, ActionMenuButton } from "@/components/ui/ActionMenu";
 import { LensStatusTags } from "./LensStatusTags";
 
 export function LensTable({ lenses, selectedIds, onToggleSelected, onEdit }: { lenses: Lens[]; selectedIds: string[]; onToggleSelected: (id: string) => void; onEdit: (lens: Lens) => void }) {
   return (
-    <div className="card table-card">
+    <div className="card table-card table-card-with-actions">
+      <div className="table-scroll">
       <table>
-        <thead><tr><th>Comparer</th><th>Objectif</th><th>Type</th><th>Monture</th><th>Focale</th><th>Ouverture</th><th className="numeric-cell">Prix</th><th className="numeric-cell">Poids</th><th>Tags</th><th>Actions</th></tr></thead>
+        <thead><tr><th>Comparer</th><th>Objectif</th><th>Type</th><th>Monture</th><th>Focale</th><th>Ouverture</th><th className="numeric-cell">Prix</th><th className="numeric-cell">Poids</th><th>Tags</th><th className="actions-column">Actions</th></tr></thead>
         <tbody>
           {lenses.map((lens) => (
             <tr key={lens.id}>
@@ -21,11 +23,19 @@ export function LensTable({ lenses, selectedIds, onToggleSelected, onEdit }: { l
               <td className="numeric-cell">{lens.priceEur !== null ? formatPrice(lens.priceEur) : "—"}</td>
               <td className="numeric-cell">{lens.weightG !== null ? formatWeight(lens.weightG) : "—"}</td>
               <td><LensStatusTags lens={lens} /></td>
-              <td className="actions"><button className="ghost-button" onClick={() => onEdit(lens)}>Modifier</button><form action={deleteLensAction.bind(null, lens.id)}><button className="danger-button">Supprimer</button></form></td>
+              <td className="actions-cell">
+                <ActionMenu label={`Actions pour ${lens.label}`}>
+                  <ActionMenuButton onClick={() => onEdit(lens)}>Modifier</ActionMenuButton>
+                  <form action={deleteLensAction.bind(null, lens.id)}>
+                    <ActionMenuButton type="submit" danger>Supprimer</ActionMenuButton>
+                  </form>
+                </ActionMenu>
+              </td>
             </tr>
           ))}
         </tbody>
       </table>
+      </div>
       {lenses.length === 0 ? <p className="empty-state">Aucun objectif ne correspond aux filtres.</p> : null}
     </div>
   );

@@ -2,10 +2,12 @@ import React from "react";
 import type { Body } from "@/lib/body/types";
 import { BodyStatusTags } from "@/components/body/BodyStatusTags";
 import { formatBodyIsoRange, formatBodyPrice, formatBodyWeight, formatBurstFps, formatMegapixels, getBodySensorFormatLabel, getBodyTypeLabel } from "@/lib/body/body-utils";
+import { ActionMenu, ActionMenuButton } from "@/components/ui/ActionMenu";
 
 export function BodyTable({ bodies, selectedIds, onToggleSelected, onShowDetail, onEdit }: { bodies: Body[]; selectedIds: string[]; onToggleSelected: (id: string) => void; onShowDetail: (body: Body) => void; onEdit: (body: Body) => void }) {
   return (
-    <div className="card table-card">
+    <div className="card table-card table-card-with-actions">
+      <div className="table-scroll">
       <table>
         <thead>
           <tr>
@@ -21,7 +23,7 @@ export function BodyTable({ bodies, selectedIds, onToggleSelected, onShowDetail,
             <th>Poids</th>
             <th>Prix</th>
             <th>Statuts</th>
-            <th>Actions</th>
+            <th className="actions-column">Actions</th>
           </tr>
         </thead>
         <tbody>
@@ -41,12 +43,13 @@ export function BodyTable({ bodies, selectedIds, onToggleSelected, onShowDetail,
                 <td className="numeric-cell">{formatBodyWeight(body.weightG)}</td>
                 <td className="numeric-cell">{formatBodyPrice(body.priceEur)}</td>
                 <td><BodyStatusTags body={body} /></td>
-                <td><div className="actions"><button type="button" className="ghost-button" onClick={() => onShowDetail(body)}>Voir</button><button type="button" className="ghost-button" onClick={() => onEdit(body)}>Modifier</button></div></td>
+                <td className="actions-cell"><ActionMenu label={`Actions pour ${body.label}`}><ActionMenuButton onClick={() => onShowDetail(body)}>Voir</ActionMenuButton><ActionMenuButton onClick={() => onEdit(body)}>Modifier</ActionMenuButton></ActionMenu></td>
               </tr>
             );
           })}
         </tbody>
       </table>
+      </div>
     </div>
   );
 }

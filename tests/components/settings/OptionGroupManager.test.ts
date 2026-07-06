@@ -71,6 +71,10 @@ vi.mock("react", async () => {
 
 import { OptionGroupManager } from "../../../src/components/settings/OptionGroupManager";
 
+function mockUseStateWithSelectedGroup(selectedGroupId: string) {
+  reactHookMocks.useState = (initialValue: unknown) => [initialValue === groups[0].id ? selectedGroupId : initialValue, vi.fn()];
+}
+
 // ---------------------------------------------------------------------------
 // Suite
 // ---------------------------------------------------------------------------
@@ -171,7 +175,7 @@ describe("OptionGroupManager", () => {
    * Verifies that the group selector dropdown is rendered with all groups
    */
   test("renders group selector dropdown", () => {
-    reactHookMocks.useState = (initialValue: unknown) => [groups[0].id, vi.fn()];
+    mockUseStateWithSelectedGroup(groups[0].id);
 
     const html = renderToStaticMarkup(
       createElement(OptionGroupManager, {
@@ -193,7 +197,7 @@ describe("OptionGroupManager", () => {
    */
   test("renders member options grouped by brand", () => {
     // selectedGroupId = groups[0].id = "g-stab"
-    reactHookMocks.useState = (initialValue: unknown) => [groups[0].id, vi.fn()];
+    mockUseStateWithSelectedGroup(groups[0].id);
 
     const html = renderToStaticMarkup(
       createElement(OptionGroupManager, {
@@ -226,7 +230,7 @@ describe("OptionGroupManager", () => {
    * Verifies that when no options exist for a brand, its fieldset is hidden
    */
   test("hides brand section when brand has no options", () => {
-    reactHookMocks.useState = (initialValue: unknown) => [groups[0].id, vi.fn()];
+    mockUseStateWithSelectedGroup(groups[0].id);
 
     // Only pass Canon options (no Sony options)
     const html = renderToStaticMarkup(

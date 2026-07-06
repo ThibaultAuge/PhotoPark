@@ -1,8 +1,10 @@
 "use client";
 
+import React from "react";
 import { useRef, useState } from "react";
 import type { LensBrand, LensOption } from "@/lib/lens/types";
 import { createOptionAction, updateOptionAction, deleteOptionAction } from "@/app/actions/lens-actions";
+import { ActionMenu, ActionMenuButton } from "@/components/ui/ActionMenu";
 
 export function OptionManager({ options, brands }: { options: LensOption[]; brands: LensBrand[] }) {
   const formRef = useRef<HTMLFormElement>(null);
@@ -57,8 +59,10 @@ export function OptionManager({ options, brands }: { options: LensOption[]; bran
                 <input name="code" defaultValue={option.code} required />
                 <input name="description" defaultValue={option.description} required />
                 <input type="hidden" name="brandId" value={option.brandId} />
-                <button className="ghost-button" type="submit">OK</button>
-                <button formAction={deleteOptionAction.bind(null, option.id)} className="danger-button" type="submit">Supprimer</button>
+                <ActionMenu label={`Actions pour ${option.code}`}>
+                  <ActionMenuButton type="submit">OK</ActionMenuButton>
+                  <ActionMenuButton formAction={deleteOptionAction.bind(null, option.id)} type="submit" danger>Supprimer</ActionMenuButton>
+                </ActionMenu>
               </form>
             ))}
           </div>

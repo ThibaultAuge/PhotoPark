@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
 import { createAccessoryAction, deleteAccessoryAction, updateAccessoryAction } from "@/app/actions/accessory-actions";
+import { ACCESSORY_TYPE_IDS } from "@/lib/accessory/accessory-type-ids";
 import { AccessoryForm } from "../../../src/components/accessory/AccessoryForm";
 import type { Accessory, AccessoryReferenceData } from "../../../src/lib/accessory/types";
 
@@ -152,6 +153,11 @@ function findElement(node: ReactNode, predicate: (element: { type: unknown; prop
   if ("type" in node && "props" in node && typeof node.props === "object" && node.props) {
     const element = node as { type: unknown; props: Record<string, unknown> };
     if (predicate(element)) return element;
+    if (typeof element.type === "function") {
+      const rendered = element.type(element.props);
+      const nestedMatch = findElement(rendered as ReactNode, predicate);
+      if (nestedMatch) return nestedMatch;
+    }
     return findElement(element.props.children as ReactNode, predicate);
   }
 
@@ -178,7 +184,7 @@ function renderFormElement({
 
   reactHookMocks.useMemo = (factory) => factory();
   reactHookMocks.useRef = () => ({ current: formCurrent });
-  reactHookMocks.useState = (initialValue) => [initialValue, stateSetters[stateIndex++] ?? vi.fn()];
+  reactHookMocks.useState = (initialValue) => [typeof initialValue === "function" ? (initialValue as () => unknown)() : initialValue, stateSetters[stateIndex++] ?? vi.fn()];
 
   return {
     node: AccessoryForm({
@@ -312,9 +318,9 @@ describe("AccessoryForm", () => {
     const filterReferenceData: AccessoryReferenceData = {
       ...referenceData,
       types: [
-        { id: "type-filter", name: "Filtre", category: "filter" },
-        { id: "type-magnetic-step", name: "Bague de réduction magnétique", category: "filter" },
-        { id: "type-magnetic", name: "Bague magnétique", category: "filter" },
+        { id: ACCESSORY_TYPE_IDS.filter, name: "Filtre", category: "filter" },
+        { id: ACCESSORY_TYPE_IDS.magneticStepRing, name: "Bague de réduction magnétique", category: "filter" },
+        { id: ACCESSORY_TYPE_IDS.magneticBaseRing, name: "Bague magnétique", category: "filter" },
       ],
     };
 
@@ -327,11 +333,13 @@ describe("AccessoryForm", () => {
 
     const hiddenType = findElement(node, (element) => element.type === "input" && element.props.name === "typeId");
     const hiddenName = findElement(node, (element) => element.type === "input" && element.props.name === "name");
-    const calculatedType = findElement(node, (element) => element.type === "input" && element.props.value === "Bague magnétique");
-    const calculatedName = findElement(node, (element) => element.type === "input" && element.props.value === "Bague magnétique 77 mm avec pare-soleil");
+    const calculatedType = findElement(node, (element) => element.type === "input" && element.props.placeholder === "Calculé selon rôle et interfaces");
+    const calculatedName = findElement(node, (element) => element.type === "input" && element.props.placeholder === "Calculé automatiquement");
 
-    expect(hiddenType?.props.value).toBe("type-magnetic");
+    expect(hiddenType?.props.value).toBe(ACCESSORY_TYPE_IDS.magneticBaseRing);
     expect(hiddenName?.props.value).toBe("Bague magnétique 77 mm avec pare-soleil");
+    expect(calculatedType?.props.value).toBe("Bague magnétique");
+    expect(calculatedName?.props.value).toBe("Bague magnétique 77 mm avec pare-soleil");
     expect(calculatedType?.props.readOnly).toBe(true);
     expect(calculatedName?.props.readOnly).toBe(true);
   });

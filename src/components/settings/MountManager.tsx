@@ -1,8 +1,10 @@
 "use client";
 
+import React from "react";
 import { useRef, useState } from "react";
 import type { LensMount } from "@/lib/lens/types";
 import { createMountAction, updateMountAction, deleteMountAction } from "@/app/actions/lens-actions";
+import { ActionMenu, ActionMenuButton } from "@/components/ui/ActionMenu";
 
 export function MountManager({ mounts }: { mounts: LensMount[] }) {
   const formRef = useRef<HTMLFormElement>(null);
@@ -48,8 +50,10 @@ export function MountManager({ mounts }: { mounts: LensMount[] }) {
                   <option value="FULL_FRAME">Plein format</option>
                   <option value="APS_C">APS-C</option>
                 </select>
-                <button className="ghost-button" type="submit">OK</button>
-                <button formAction={deleteMountAction.bind(null, mount.id)} className="danger-button" type="submit">Supprimer</button>
+                <ActionMenu label={`Actions pour ${mount.name}`}>
+                  <ActionMenuButton type="submit">OK</ActionMenuButton>
+                  <ActionMenuButton formAction={deleteMountAction.bind(null, mount.id)} type="submit" danger>Supprimer</ActionMenuButton>
+                </ActionMenu>
               </form>
             ))}
           </div>

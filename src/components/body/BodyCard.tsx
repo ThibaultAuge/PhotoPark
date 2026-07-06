@@ -2,6 +2,7 @@ import React from "react";
 import type { Body } from "@/lib/body/types";
 import { BodyStatusTags } from "@/components/body/BodyStatusTags";
 import { formatBodyIsoRange, formatBodyPrice, formatBodyWeight, formatBurstFps, formatMegapixels, getBodySensorFormatLabel, getBodyTypeLabel } from "@/lib/body/body-utils";
+import { ActionMenu, ActionMenuButton } from "@/components/ui/ActionMenu";
 
 export function BodyCard({ body, selected, onToggleSelected, onShowDetail, onEdit }: { body: Body; selected: boolean; onToggleSelected: (id: string) => void; onShowDetail: (body: Body) => void; onEdit: (body: Body) => void }) {
   return (
@@ -20,7 +21,7 @@ export function BodyCard({ body, selected, onToggleSelected, onShowDetail, onEdi
         <div><dt>Poids</dt><dd>{formatBodyWeight(body.weightG)}</dd></div>
         <div><dt>Prix</dt><dd className="numeric-value">{formatBodyPrice(body.priceEur)}</dd></div>
       </dl>
-      <div className="card-actions"><button type="button" className={selected ? "primary-button" : "ghost-button"} onClick={() => onToggleSelected(body.id)}>{selected ? "Retirer" : "Comparer"}</button><button type="button" className="ghost-button" onClick={() => onShowDetail(body)}>Voir</button><button type="button" className="ghost-button" onClick={() => onEdit(body)}>Modifier</button></div>
+      <div className="card-actions"><button type="button" className={selected ? "primary-button" : "ghost-button"} onClick={() => onToggleSelected(body.id)}>{selected ? "Retirer" : "Comparer"}</button><ActionMenu label={`Actions pour ${body.label}`}><ActionMenuButton onClick={() => onShowDetail(body)}>Voir</ActionMenuButton><ActionMenuButton onClick={() => onEdit(body)}>Modifier</ActionMenuButton></ActionMenu></div>
     </article>
   );
 }

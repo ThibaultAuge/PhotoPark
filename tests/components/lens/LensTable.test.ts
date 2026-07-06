@@ -53,7 +53,7 @@ function renderTable(lenses: Lens[], selectedIds: string[] = []) {
 
 describe("LensTable", () => {
   /**
-   * Verifies that table rows display formatted lens summary values
+   * Verifies that table rows display formatted values and action wrappers
    */
   test("renders formatted lens values in table rows", () => {
     const markup = renderTable([baseLens, {
@@ -88,6 +88,11 @@ describe("LensTable", () => {
     expect(markup).toContain("499.00 €");
     expect(markup).toContain("187 g");
     expect(markup).toContain('class="numeric-cell">499.00 €');
+    expect(markup).toContain('class="card table-card table-card-with-actions"');
+    expect(markup).toContain('<div class="table-scroll"><table>');
+    expect(markup).toContain('class="actions-column">Actions');
+    expect(markup).toContain('aria-label="Actions pour Sigma E 24-70 f/2.8-4"');
+    expect(markup).toContain("Supprimer");
     expect(markup).toMatch(/<input(?=[^>]*type="checkbox")(?=[^>]*checked="")(?=[^>]*aria-label="Comparer Sigma E 24-70 f\/2\.8-4")[^>]*>/);
   });
 
@@ -102,6 +107,9 @@ describe("LensTable", () => {
     expect(markup).not.toContain("Supprimer");
   });
 
+  /**
+   * Verifies that zero price and weight stay visible instead of fallback dashes
+   */
   test("renders zero price and weight instead of empty dash", () => {
     const markup = renderTable([{ ...baseLens, priceEur: 0, weightG: 0 }]);
 

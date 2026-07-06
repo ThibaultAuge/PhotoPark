@@ -1,3 +1,4 @@
+import { getDerivedFilterAccessoryTypeId } from "@/lib/accessory/accessory-type-ids";
 import { formatPrice, formatWeight } from "@/lib/lens/lens-utils";
 import type { Accessory, AccessoryInput, AccessoryMountType, AccessoryReferenceData } from "@/lib/accessory/types";
 
@@ -158,18 +159,9 @@ export function deriveFilterAccessoryPresentation(draft: FilterAccessoryDraft) {
 export function resolveFilterAccessoryTypeId(referenceData: AccessoryReferenceData, typeName: string | null) {
   if (!typeName) return "";
 
-  const preferredNames = typeName === "Bague de réduction magnétique"
-    ? ["Bague de réduction magnétique", "Bague vissée → magnétique"]
-    : typeName === "Bague magnétique"
-      ? ["Bague magnétique", "Bague vissée → magnétique"]
-      : [typeName];
+  const typeId = getDerivedFilterAccessoryTypeId(typeName);
 
-  for (const candidate of preferredNames) {
-    const match = referenceData.types.find((type) => type.category === "filter" && type.name === candidate);
-    if (match) return match.id;
-  }
-
-  return "";
+  return typeId && referenceData.types.some((type) => type.category === "filter" && type.id === typeId) ? typeId : "";
 }
 
 export function getAccessoryEffectiveRearDiameter(type: AccessoryMountType, diameter: number | null) {

@@ -18,7 +18,7 @@ function createFilterAccessory(overrides: Partial<Accessory>): Accessory {
     brandId: "brand-1",
     brand: "Kase",
     typeId: "type-filter",
-    type: "Bague vissée → magnétique",
+    type: "Bague magnétique",
     typeCategory: "filter",
     name: "Base ring",
     label: "Kase Base ring",

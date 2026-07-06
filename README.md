@@ -245,6 +245,8 @@ Les types d’accessoires se gèrent dans `Paramètres > Types d’accessoires`,
 
 Les types par défaut de la catégorie `filter` incluent aussi `Bague de réduction magnétique` et `Bague magnétique`.
 
+Le libellé historique `Bague vissée → magnétique` n’est plus proposé dans les choix actuels. Les bagues concernées utilisent désormais les types canoniques actuels selon leurs interfaces et leurs diamètres.
+
 ## Inventaire des boîtiers
 
 La page `/bodies` gère l’inventaire des boîtiers photo.
@@ -495,6 +497,8 @@ Une migration ultérieure ajoute la colonne `brandId` à la table `lens_options`
 Au démarrage, l’application répare aussi automatiquement les bases SQLite existantes si la table `lenses` ne contient pas encore les colonnes `minApertureAtMinFocal`, `minApertureAtMaxFocal` ou `retired`.
 
 Pour les accessoires, l’initialisation SQLite répare aussi d’abord les colonnes legacy avant de créer les index. Cette réparation évite un échec sur certaines bases locales mises à niveau avec l’erreur `no such column: mountedOnLensId`.
+
+Au démarrage, l’application migre aussi automatiquement l’ancien type historique `Bague vissée → magnétique` vers les types canoniques actuels de `Filtres & bagues`.
 
 Le schéma courant ajoute aussi la table `brand_domains` pour filtrer les marques par domaine, la table `bodies` pour l’inventaire des boîtiers et les tables `accessory_types` / `accessories` pour l’inventaire des accessoires avec sous-catégories `Sacs & poches` et `Filtres & bagues`.
 

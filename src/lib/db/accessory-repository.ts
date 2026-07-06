@@ -1,7 +1,8 @@
 import { randomUUID } from "node:crypto";
 import type Database from "better-sqlite3";
+import { ACCESSORY_TYPE_IDS, BUILT_IN_ACCESSORY_TYPES, LEGACY_ACCESSORY_TYPE_IDS, getDerivedFilterAccessoryTypeId } from "@/lib/accessory/accessory-type-ids";
 import type { Accessory, AccessoryInput, AccessoryReferenceData, AccessoryType } from "@/lib/accessory/types";
-import { deriveFilterAccessoryPresentation, normalizeAccessoryInput } from "@/lib/accessory/accessory-utils";
+import { deriveFilterAccessoryPresentation, generateAccessoryLabel, normalizeAccessoryInput } from "@/lib/accessory/accessory-utils";
 import { getDatabase, listBrandsByDomain, listLenses } from "@/lib/db/lens-repository";
 
 let accessorySchemaReady = false;
@@ -11,8 +12,10 @@ function getAccessoryDatabase() {
   if (!accessorySchemaReady) {
     initializeAccessorySchema(database);
     ensureAccessorySchemaColumns(database);
+    reconcileBuiltInAccessoryTypeIds(database);
     ensureAccessorySchemaIndexes(database);
     seedAccessoryReferenceData(database);
+    migrateLegacyMagneticRingType(database);
     accessorySchemaReady = true;
   }
   return database;
@@ -100,16 +103,83 @@ function ensureAccessorySchemaIndexes(database: Database.Database) {
 function seedAccessoryReferenceData(database: Database.Database) {
   const now = new Date().toISOString();
   const insert = database.prepare("INSERT OR IGNORE INTO accessory_types (id, name, category, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?)");
-  insert.run("a-type-backpack", "Sac à dos", "bag", now, now);
-  insert.run("a-type-shoulder", "Bandoulière", "bag", now, now);
-  insert.run("a-type-pouch", "Poche", "bag", now, now);
-  insert.run("a-type-belt", "Ceinture", "bag", now, now);
-  insert.run("a-type-filter", "Filtre", "filter", now, now);
-  insert.run("a-type-step-ring", "Bague de conversion", "filter", now, now);
-  insert.run("a-type-magnetic-step-ring", "Bague de réduction magnétique", "filter", now, now);
-  insert.run("a-type-magnetic-base-ring", "Bague magnétique", "filter", now, now);
-  insert.run("a-type-magnetic-ring", "Bague vissée → magnétique", "filter", now, now);
-  insert.run("a-type-hood-adapter", "Adaptateur / pare-soleil magnétique", "filter", now, now);
+  for (const type of BUILT_IN_ACCESSORY_TYPES) {
+    insert.run(type.id, type.name, type.category, now, now);
+  }
+}
+
+function reconcileBuiltInAccessoryTypeIds(database: Database.Database) {
+  const selectById = database.prepare("SELECT id, category FROM accessory_types WHERE id = ?");
+  const selectByName = database.prepare("SELECT id FROM accessory_types WHERE name = ? AND category = ?");
+  const updateCategory = database.prepare("UPDATE accessory_types SET category = ?, updatedAt = ? WHERE id = ?");
+  const updateId = database.prepare("UPDATE accessory_types SET id = ? WHERE id = ?");
+  const insert = database.prepare("INSERT INTO accessory_types (id, name, category, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?)");
+  const now = new Date().toISOString();
+
+  const reconcile = database.transaction(() => {
+    for (const type of BUILT_IN_ACCESSORY_TYPES) {
+      const existingById = selectById.get(type.id) as { id: string; category: AccessoryType["category"] } | undefined;
+      if (existingById) {
+        if (existingById.category !== type.category) updateCategory.run(type.category, now, type.id);
+        continue;
+      }
+
+      const existingByName = selectByName.get(type.name, type.category) as { id: string } | undefined;
+      if (existingByName) {
+        updateId.run(type.id, existingByName.id);
+        continue;
+      }
+
+      insert.run(type.id, type.name, type.category, now, now);
+    }
+  });
+
+  reconcile();
+}
+
+function migrateLegacyMagneticRingType(database: Database.Database) {
+  const legacyType = database.prepare("SELECT id FROM accessory_types WHERE id = ?").get(LEGACY_ACCESSORY_TYPE_IDS.magneticRing) as { id: string } | undefined;
+  if (!legacyType) return;
+
+  const magneticType = database.prepare("SELECT id FROM accessory_types WHERE id = ? AND category = 'filter'").get(ACCESSORY_TYPE_IDS.magneticBaseRing) as { id: string } | undefined;
+  const magneticStepType = database.prepare("SELECT id FROM accessory_types WHERE id = ? AND category = 'filter'").get(ACCESSORY_TYPE_IDS.magneticStepRing) as { id: string } | undefined;
+  if (!magneticType || !magneticStepType) return;
+
+  const legacyAccessories = database.prepare(`SELECT accessories.id, brands.name AS brand, rearMountType, rearDiameterMm, frontMountType, frontDiameterMm, supportsMagneticHood
+    FROM accessories
+    JOIN brands ON brands.id = accessories.brandId
+    WHERE typeId = ?`).all(legacyType.id) as Array<Pick<Accessory, "id" | "brand" | "rearMountType" | "rearDiameterMm" | "frontMountType" | "frontDiameterMm" | "supportsMagneticHood">>;
+
+  const updateType = database.prepare("UPDATE accessories SET typeId = ?, name = ?, label = ?, updatedAt = ? WHERE id = ?");
+  const deleteType = database.prepare("DELETE FROM accessory_types WHERE id = ?");
+  const now = new Date().toISOString();
+
+  const migrate = database.transaction(() => {
+    for (const accessory of legacyAccessories) {
+      const derived = deriveFilterAccessoryPresentation({
+        filterRole: "adapter",
+        rearMountType: accessory.rearMountType,
+        rearDiameterMm: accessory.rearDiameterMm,
+        frontMountType: accessory.frontMountType,
+        frontDiameterMm: accessory.frontDiameterMm,
+        supportsMagneticHood: Boolean(accessory.supportsMagneticHood),
+        filterStrength: null,
+      });
+      if (!derived.valid || (derived.typeName !== "Bague magnétique" && derived.typeName !== "Bague de réduction magnétique")) {
+        throw new Error(`Legacy accessory type migration failed for ${accessory.id}: unsupported geometry for \"Bague vissée → magnétique\".`);
+      }
+
+      const canonicalTypeName = derived.typeName;
+      const canonicalName = derived.name;
+      const targetTypeId = canonicalTypeName === "Bague de réduction magnétique" ? magneticStepType.id : magneticType.id;
+
+      updateType.run(targetTypeId, canonicalName, generateAccessoryLabel({ brand: accessory.brand, name: canonicalName }), now, accessory.id);
+    }
+
+    deleteType.run(legacyType.id);
+  });
+
+  migrate();
 }
 
 export function listAccessoryReferenceData(): AccessoryReferenceData {
@@ -282,6 +352,8 @@ export function updateAccessoryType(id: string, name: string, category: Accessor
   const database = getAccessoryDatabase();
   const existing = database.prepare("SELECT category FROM accessory_types WHERE id = ?").get(id) as { category: AccessoryType["category"] } | undefined;
   if (!existing) throw new Error("Type d'accessoire inconnu.");
+  const builtInType = BUILT_IN_ACCESSORY_TYPES.find((type) => type.id === id);
+  if (builtInType && category !== builtInType.category) throw new Error("Impossible de changer la catégorie d'un type système requis.");
   if (existing.category !== category) {
     const inUse = database.prepare("SELECT 1 FROM accessories WHERE typeId = ? LIMIT 1").get(id);
     if (inUse) throw new Error("Impossible de changer la catégorie d'un type déjà utilisé par des accessoires.");
@@ -291,6 +363,7 @@ export function updateAccessoryType(id: string, name: string, category: Accessor
 }
 
 export function deleteAccessoryType(id: string) {
+  if (BUILT_IN_ACCESSORY_TYPES.some((type) => type.id === id)) throw new Error("Impossible de supprimer un type système requis.");
   getAccessoryDatabase().prepare("DELETE FROM accessory_types WHERE id = ?").run(id);
 }
 
@@ -330,7 +403,10 @@ function deriveAccessoryPersistenceInput(database: Database.Database, input: Acc
     throw new Error(derived.reason ?? "Type de filtre/bague impossible à déduire.");
   }
 
-  const derivedType = database.prepare("SELECT id FROM accessory_types WHERE category = 'filter' AND name = ?").get(derived.typeName) as { id: string } | undefined;
+  const derivedTypeId = getDerivedFilterAccessoryTypeId(derived.typeName);
+  const derivedType = derivedTypeId
+    ? database.prepare("SELECT id FROM accessory_types WHERE id = ? AND category = 'filter'").get(derivedTypeId) as { id: string } | undefined
+    : undefined;
   if (!derivedType) {
     throw new Error(`Type de filtre/bague introuvable: ${derived.typeName}.`);
   }

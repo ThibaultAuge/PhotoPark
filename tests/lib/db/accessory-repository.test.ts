@@ -62,7 +62,166 @@ describe("accessory repository", () => {
 
     expect(typeNames).toContain("Bague de réduction magnétique");
     expect(typeNames).toContain("Bague magnétique");
-    expect(typeNames).toContain("Bague vissée → magnétique");
+    expect(typeNames).not.toContain("Bague vissée → magnétique");
+  });
+
+  test("startup reconciles canonical filter types onto stable built-in ids", async () => {
+    useIsolatedDatabasePath();
+    vi.resetModules();
+
+    const { getDatabase } = await import("../../../src/lib/db/lens-repository");
+    const database = getDatabase();
+    const now = new Date().toISOString();
+    database.exec(`
+      CREATE TABLE IF NOT EXISTS accessory_types (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL UNIQUE COLLATE NOCASE,
+        category TEXT NOT NULL DEFAULT 'bag' CHECK(category IN ('bag', 'filter')),
+        createdAt TEXT NOT NULL,
+        updatedAt TEXT NOT NULL
+      );
+    `);
+    database.prepare("INSERT INTO accessory_types (id, name, category, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?)")
+      .run("legacy-magnetic-id", "Bague magnétique", "filter", now, now);
+
+    vi.resetModules();
+
+    const { listAccessoryReferenceData } = await import("../../../src/lib/db/accessory-repository");
+    const magneticType = listAccessoryReferenceData().types.find((type) => type.name === "Bague magnétique");
+
+    expect(magneticType?.id).toBe("a-type-magnetic-base-ring");
+  });
+
+  /**
+   * Verifies that legacy magnetic ring types migrate to canonical equal and reduced variants and remove the legacy type.
+   */
+  test("legacy magnetic ring type is migrated to current canonical types", async () => {
+    useIsolatedDatabasePath();
+    vi.resetModules();
+
+    const { listAccessoryReferenceData } = await import("../../../src/lib/db/accessory-repository");
+    const { getDatabase } = await import("../../../src/lib/db/lens-repository");
+
+    listAccessoryReferenceData();
+
+    const database = getDatabase();
+    const now = new Date().toISOString();
+    database.prepare("INSERT INTO accessory_types (id, name, category, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?)")
+      .run("a-type-magnetic-ring", "Bague vissée → magnétique", "filter", now, now);
+    database.prepare("INSERT INTO brands (id, name, createdAt, updatedAt) VALUES (?, ?, ?, ?)")
+      .run("brand-1", "Kase", now, now);
+    database.prepare("INSERT INTO brand_domains (brandId, domain) VALUES (?, ?)")
+      .run("brand-1", "accessories");
+    database.prepare(`INSERT INTO accessories (
+      id, brandId, typeId, name, label, capacityLiters, capacityBodies, capacityLenses,
+      fitsLaptop, fitsTripod, widthMm, heightMm, depthMm, weightG, priceEur,
+      carryStyleNotes, capacityNotes, storageLocation, mountedOnLensId, mountedOnAccessoryId,
+      rearMountType, rearDiameterMm, frontMountType, frontDiameterMm, filterRole,
+      filterStrength, supportsMagneticHood, isFavorite, isNextPurchase, isOwned, retired,
+      createdAt, updatedAt
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+      .run(
+        "acc-1", "brand-1", "a-type-magnetic-ring", "Legacy ring", "Kase Legacy ring",
+         null, null, null,
+         0, 0, null, null, null, null, null,
+         null, null, "bag", null, null,
+         "threaded", 72, "magnetic", 77, "adapter",
+         null, 0, 0, 0, 1, 0,
+         now, now,
+      );
+    database.prepare(`INSERT INTO accessories (
+      id, brandId, typeId, name, label, capacityLiters, capacityBodies, capacityLenses,
+      fitsLaptop, fitsTripod, widthMm, heightMm, depthMm, weightG, priceEur,
+      carryStyleNotes, capacityNotes, storageLocation, mountedOnLensId, mountedOnAccessoryId,
+      rearMountType, rearDiameterMm, frontMountType, frontDiameterMm, filterRole,
+      filterStrength, supportsMagneticHood, isFavorite, isNextPurchase, isOwned, retired,
+      createdAt, updatedAt
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+      .run(
+        "acc-2", "brand-1", "a-type-magnetic-ring", "Legacy ring same size", "Kase Legacy ring same size",
+        null, null, null,
+        0, 0, null, null, null, null, null,
+        null, null, "bag", null, null,
+        "threaded", 77, "magnetic", 77, "adapter",
+        null, 0, 0, 0, 1, 0,
+        now, now,
+      );
+
+    vi.resetModules();
+
+    const migratedRepository = await import("../../../src/lib/db/accessory-repository");
+    const typeNames = migratedRepository.listAccessoryReferenceData().types.map((type) => type.name);
+    const accessories = migratedRepository.listAccessories();
+    const migratedReduced = accessories.find((item) => item.id === "acc-1");
+    const migratedEqual = accessories.find((item) => item.id === "acc-2");
+
+    expect(typeNames).not.toContain("Bague vissée → magnétique");
+    expect(migratedReduced?.type).toBe("Bague de réduction magnétique");
+    expect(migratedReduced?.name).toBe("Bague de réduction magnétique 72→77 mm");
+    expect(migratedReduced?.label).toBe("Kase Bague de réduction magnétique 72→77 mm");
+    expect(migratedEqual?.type).toBe("Bague magnétique");
+    expect(migratedEqual?.name).toBe("Bague magnétique 77 mm");
+    expect(migratedEqual?.label).toBe("Kase Bague magnétique 77 mm");
+    expect(accessories.every((item) => item.type !== "Bague vissée → magnétique")).toBe(true);
+  });
+
+  test("createAccessory still derives adapter types after canonical filter types are renamed", async () => {
+    useIsolatedDatabasePath();
+    vi.resetModules();
+
+    const { createAccessory, listAccessoryReferenceData, listAccessories, updateAccessoryType } = await import("../../../src/lib/db/accessory-repository");
+    const { createBrand } = await import("../../../src/lib/db/lens-repository");
+
+    createBrand("Kase", ["accessories"]);
+
+    let referenceData = listAccessoryReferenceData();
+    const kaseBrand = referenceData.brands.find((brand) => brand.name === "Kase");
+    const magneticType = referenceData.types.find((type) => type.id === "a-type-magnetic-base-ring");
+
+    expect(kaseBrand).toBeDefined();
+    expect(magneticType).toBeDefined();
+
+    updateAccessoryType(magneticType!.id, "Anneau magnétique", "filter");
+
+    referenceData = listAccessoryReferenceData();
+
+    createAccessory({
+      brandId: kaseBrand!.id,
+      typeId: magneticType!.id,
+      name: "Nom truqué",
+      capacityLiters: null,
+      capacityBodies: null,
+      capacityLenses: null,
+      fitsLaptop: false,
+      fitsTripod: false,
+      widthMm: null,
+      heightMm: null,
+      depthMm: null,
+      weightG: null,
+      priceEur: null,
+      carryStyleNotes: null,
+      capacityNotes: null,
+      storageLocation: "bag",
+      mountedOnLensId: null,
+      mountedOnAccessoryId: null,
+      rearMountType: "threaded",
+      rearDiameterMm: 77,
+      frontMountType: "magnetic",
+      frontDiameterMm: 77,
+      filterRole: "adapter",
+      filterStrength: null,
+      supportsMagneticHood: false,
+      isFavorite: false,
+      isNextPurchase: false,
+      isOwned: true,
+      retired: false,
+    });
+
+    const created = listAccessories()[0];
+    expect(referenceData.types.find((type) => type.id === magneticType!.id)?.name).toBe("Anneau magnétique");
+    expect(created.typeId).toBe(magneticType!.id);
+    expect(created.type).toBe("Anneau magnétique");
+    expect(created.name).toBe("Bague magnétique 77 mm");
   });
 
   /**

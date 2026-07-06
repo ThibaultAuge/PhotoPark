@@ -5,11 +5,11 @@ import type { Accessory, AccessoryReferenceData } from "../../../src/lib/accesso
 const referenceData: AccessoryReferenceData = {
   brands: [],
   types: [
-    { id: "type-filter", name: "Filtre", category: "filter" },
-    { id: "type-step", name: "Bague de conversion", category: "filter" },
-    { id: "type-magnetic-step", name: "Bague de réduction magnétique", category: "filter" },
-    { id: "type-magnetic", name: "Bague magnétique", category: "filter" },
-    { id: "type-hood", name: "Adaptateur / pare-soleil magnétique", category: "filter" },
+    { id: "a-type-filter", name: "Filtre", category: "filter" },
+    { id: "a-type-step-ring", name: "Bague de conversion", category: "filter" },
+    { id: "a-type-magnetic-step-ring", name: "Bague de réduction magnétique", category: "filter" },
+    { id: "a-type-magnetic-base-ring", name: "Bague magnétique", category: "filter" },
+    { id: "a-type-hood-adapter", name: "Adaptateur / pare-soleil magnétique", category: "filter" },
   ],
   lenses: [],
 };
@@ -135,8 +135,22 @@ describe("resolveFilterAccessoryTypeId", () => {
    * Verifies that derived type names resolve to seeded filter type ids
    */
   test("matches the seeded type for a derived type name", () => {
-    expect(resolveFilterAccessoryTypeId(referenceData, "Bague de réduction magnétique")).toBe("type-magnetic-step");
-    expect(resolveFilterAccessoryTypeId(referenceData, "Bague magnétique")).toBe("type-magnetic");
+    expect(resolveFilterAccessoryTypeId(referenceData, "Bague de réduction magnétique")).toBe("a-type-magnetic-step-ring");
+    expect(resolveFilterAccessoryTypeId(referenceData, "Bague magnétique")).toBe("a-type-magnetic-base-ring");
+  });
+
+  /**
+   * Verifies that the removed legacy type name no longer resolves to a type id
+   */
+  test("returns an empty id for the removed legacy magnetic ring label", () => {
+    expect(resolveFilterAccessoryTypeId(referenceData, "Bague vissée → magnétique")).toBe("");
+  });
+
+  test("resolves canonical filter type ids even when display names were renamed", () => {
+    expect(resolveFilterAccessoryTypeId({
+      ...referenceData,
+      types: referenceData.types.map((type) => type.id === "a-type-magnetic-base-ring" ? { ...type, name: "Anneau magnétique" } : type),
+    }, "Bague magnétique")).toBe("a-type-magnetic-base-ring");
   });
 });
 

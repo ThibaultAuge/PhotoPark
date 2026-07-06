@@ -3,6 +3,7 @@ import type { Body } from "@/lib/body/types";
 import { BodyStatusTags } from "@/components/body/BodyStatusTags";
 import { formatBodyIsoRange, formatBodyPrice, formatBodyWeight, formatBurstFps, formatMegapixels, getBodySensorFormatLabel, getBodyTypeLabel } from "@/lib/body/body-utils";
 
+1
 export function BodyCard({ body, selected, onToggleSelected, onShowDetail, onEdit }: { body: Body; selected: boolean; onToggleSelected: (id: string) => void; onShowDetail: (body: Body) => void; onEdit: (body: Body) => void }) {
   return (
     <article className={`lens-card card${selected ? " selected" : ""}`}>

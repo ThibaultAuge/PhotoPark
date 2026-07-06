@@ -62,6 +62,29 @@ export function formatAccessoryLocation(accessory: Pick<Accessory, "storageLocat
   return accessory.storageLocation === "reserve" ? "Réserve" : "Sac";
 }
 
+export function formatFilterAccessoryLocation(
+  accessory: Pick<Accessory, "storageLocation" | "mountedOnLensId" | "mountedOnAccessoryId">,
+  lensLabels: ReadonlyMap<string, string>,
+  accessoriesById: ReadonlyMap<string, Pick<Accessory, "mountedOnLensId" | "mountedOnAccessoryId">>,
+) {
+  const visited = new Set<string>();
+  let currentAccessory: Pick<Accessory, "mountedOnLensId" | "mountedOnAccessoryId"> | undefined = accessory;
+
+  while (currentAccessory) {
+    if (currentAccessory.mountedOnLensId) {
+      return lensLabels.get(currentAccessory.mountedOnLensId) ?? "Monté";
+    }
+
+    const parentAccessoryId = currentAccessory.mountedOnAccessoryId;
+    if (!parentAccessoryId || visited.has(parentAccessoryId)) break;
+
+    visited.add(parentAccessoryId);
+    currentAccessory = accessoriesById.get(parentAccessoryId);
+  }
+
+  return formatAccessoryLocation(accessory);
+}
+
 export function formatAccessoryInterface(accessory: Pick<Accessory, "rearMountType" | "rearDiameterMm" | "frontMountType" | "frontDiameterMm">) {
   return `${formatMountEndpoint(accessory.rearMountType, accessory.rearDiameterMm)} → ${formatMountEndpoint(accessory.frontMountType, accessory.frontDiameterMm)}`;
 }

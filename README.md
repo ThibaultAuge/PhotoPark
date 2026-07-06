@@ -21,7 +21,7 @@ Application privée Next.js pour inventorier, filtrer, visualiser et comparer du
 - Relation 1-N entre une marque et les objectifs, les boîtiers et les accessoires.
 - Options associées aux objectifs en N-N avec un code court et une description.
 - Inventaire boîtiers en tableau desktop et cartes mobile, avec badges de statut, formatage cohérent du prix et du poids, et valeur `0` toujours affichée.
-- Inventaire accessoires en tableau desktop et cartes mobile, avec badges de statut, formatage cohérent du prix et du poids, et valeur `0` toujours affichée.
+- Inventaire accessoires en tableau desktop et cartes mobile, avec badges de statut, formatage cohérent du prix et de l’affichage des valeurs, et valeur `0` toujours affichée.
 - Tableau desktop et cartes mobile avec type `Fixe`/`Zoom`, plages identiques compactées (`7.8 mm`, `f/4`), badges de statut dont `Retiré`, prix formatés avec espaces pour les milliers et toujours 2 décimales (`3 314.00 €`), et poids formatés avec espaces pour les milliers (`1 079 g`).
 - Filtres par texte, marque, monture, option, type (`Tous`, `Fixe`, `Zoom`), statut et quatre plages numériques réglables par curseurs à double poignée (focale min 0–300 mm, focale max 0–300+ mm, ouverture à focale min f/1–f/30, ouverture à focale max f/1–f/30). Les deux plages de focale démarrent sur `0–300+ mm`. La borne haute `300` est ouverte et signifie `300 mm et plus`.
 - Filtres boîtiers par texte, marque, monture, format capteur, type (`mirrorless`, `dslr`) et statut.
@@ -203,6 +203,8 @@ La page `/accessories/filters` propose :
 
 - une liste en tableau sur desktop ;
 - des cartes sur mobile ;
+- l’affichage du libellé de l’objectif racine quand un accessoire est monté sur un objectif, même via une chaîne d’autres accessoires ; les chaînes cassées ou cycliques retombent sur un libellé générique `Monté` ;
+- l’affichage du prix sans poids dans les vues liste et carte ;
 - des filtres par texte, marque, type, statut, localisation et liaison ;
 - une fenêtre de détail ;
 - des modales de création, modification et suppression ;
@@ -236,6 +238,8 @@ Chaque élément de cette sous-catégorie peut contenir notamment :
 - une force ou densité de filtre ;
 - un indicateur de compatibilité avec pare-soleil magnétique ;
 - un poids, un prix et des notes.
+
+Dans ces vues de liste et de carte, le poids reste affiché pour `Sacs & poches`, mais il est masqué pour `Filtres & bagues`.
 
 Les types d’accessoires se gèrent dans `Paramètres > Types d’accessoires`, avec une catégorie `bag` ou `filter` pour chaque type.
 

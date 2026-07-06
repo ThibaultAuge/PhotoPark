@@ -27,8 +27,22 @@ export function AccessoryListPage({ typeCategory = "bag" }: { typeCategory?: Acc
     referenceData,
   } = useAccessoryContext();
 
-  const scopedInitialAccessories = initialAccessories.filter((accessory) => accessory.typeCategory === typeCategory);
-  const scopedFilteredAccessories = filteredAccessories.filter((accessory) => accessory.typeCategory === typeCategory);
+  const scopedInitialAccessories = React.useMemo(
+    () => initialAccessories.filter((accessory) => accessory.typeCategory === typeCategory),
+    [initialAccessories, typeCategory],
+  );
+  const scopedFilteredAccessories = React.useMemo(
+    () => filteredAccessories.filter((accessory) => accessory.typeCategory === typeCategory),
+    [filteredAccessories, typeCategory],
+  );
+  const lensLabels = React.useMemo(
+    () => new Map(referenceData.lenses.map((lens) => [lens.id, lens.label])),
+    [referenceData.lenses],
+  );
+  const accessoryMountIndex = React.useMemo(
+    () => new Map(scopedInitialAccessories.map((accessory) => [accessory.id, { mountedOnLensId: accessory.mountedOnLensId, mountedOnAccessoryId: accessory.mountedOnAccessoryId }])),
+    [scopedInitialAccessories],
+  );
   const title = typeCategory === "filter" ? "Filtres & bagues" : "Sacs & poches";
   const createLabel = typeCategory === "filter" ? "Ajouter une pièce" : "Ajouter un accessoire";
 
@@ -58,12 +72,12 @@ export function AccessoryListPage({ typeCategory = "bag" }: { typeCategory?: Acc
       {typeCategory === "filter" ? <FilterAssemblyAssistant accessories={scopedInitialAccessories} lenses={referenceData.lenses} /> : null}
 
       <div className="desktop-only">
-        <AccessoryTable accessories={scopedFilteredAccessories} onShowDetail={setDetailAccessory} onEdit={setEditingAccessory} />
+        <AccessoryTable accessories={scopedFilteredAccessories} lensLabels={lensLabels} accessoryMountIndex={accessoryMountIndex} showFilterColumns={typeCategory === "filter"} onShowDetail={setDetailAccessory} onEdit={setEditingAccessory} />
       </div>
 
       <div className="mobile-cards">
         {scopedFilteredAccessories.map((accessory) => (
-          <AccessoryCard key={accessory.id} accessory={accessory} onShowDetail={setDetailAccessory} onEdit={setEditingAccessory} />
+          <AccessoryCard key={accessory.id} accessory={accessory} lensLabels={lensLabels} accessoryMountIndex={accessoryMountIndex} onShowDetail={setDetailAccessory} onEdit={setEditingAccessory} />
         ))}
       </div>
 

@@ -43,4 +43,5 @@ describe("ActionMenu", () => {
     expect(html).toContain('disabled=""');
     expect(html).toContain('class="action-menu-item action-menu-item-danger custom-class"');
   });
+
 });

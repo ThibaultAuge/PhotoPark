@@ -11,6 +11,10 @@ export function ActionMenu({ label, children }: { label: string; children: React
   const panelRef = useRef<HTMLDivElement>(null);
   const menuId = useId();
 
+  function closeAfterAction() {
+    window.setTimeout(() => setOpen(false), 0);
+  }
+
   useEffect(() => {
     if (!open) return;
 
@@ -77,10 +81,10 @@ export function ActionMenu({ label, children }: { label: string; children: React
       className="action-menu-panel"
       hidden={!open}
       style={open ? panelStyle : undefined}
-      onClickCapture={(event) => {
+      onClick={(event) => {
         const target = event.target;
         if (target instanceof HTMLElement && target.closest("button")) {
-          setOpen(false);
+          closeAfterAction();
         }
       }}
     >

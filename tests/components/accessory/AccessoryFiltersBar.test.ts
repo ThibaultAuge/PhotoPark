@@ -43,6 +43,10 @@ function findElements(
   if ((typeof element.type === "string" || typeof element.type === "function") && predicate(element.props, element.type)) {
     results.push({ type: element.type, props: element.props });
   }
+  if (typeof element.type === "function") {
+    findElements((element.type as (props: Record<string, unknown>) => ReactNode)(element.props), predicate, results);
+    return results;
+  }
   if (element.props && "children" in element.props) {
     findElements(element.props.children as ReactNode, predicate, results);
   }
@@ -62,13 +66,16 @@ describe("AccessoryFiltersBar", () => {
       typeCategory: "bag",
     }));
 
+    expect(html).toContain("<details");
+    expect(html).not.toContain("<details open");
+    expect(html).toContain("Filtres");
     expect(html).toContain("Recherche");
     expect(html).toContain("Marque");
     expect(html).toContain("Type");
     expect(html).toContain("Statut");
     expect(html).toContain("Laptop");
     expect(html).toContain("Trépied");
-    expect(html).toContain("Réinitialiser");
+    expect(html).toContain("Effacer les filtres");
     expect(html).not.toContain("Capacité");
     expect(html).not.toContain("Poids");
   });
@@ -94,6 +101,30 @@ describe("AccessoryFiltersBar", () => {
   });
 
   /**
+   * Verifies that the search placeholder changes between bag and filter modes
+   */
+  test("renders mode-specific search placeholders", () => {
+    const bagHtml = renderToStaticMarkup(createElement(AccessoryFiltersBar, {
+      filters,
+      setFilters: vi.fn(),
+      referenceData,
+      onReset: vi.fn(),
+      typeCategory: "bag",
+    }));
+
+    const filterHtml = renderToStaticMarkup(createElement(AccessoryFiltersBar, {
+      filters,
+      setFilters: vi.fn(),
+      referenceData,
+      onReset: vi.fn(),
+      typeCategory: "filter",
+    }));
+
+    expect(bagHtml).toContain('placeholder="Marque, nom, notes..."');
+    expect(filterHtml).toContain('placeholder="Marque, nom, force, notes..."');
+  });
+
+  /**
    * Verifies that the status select updates filters with the chosen status
    */
   test("status select onChange updates filters.status", () => {
@@ -115,9 +146,9 @@ describe("AccessoryFiltersBar", () => {
   });
 
   /**
-   * Verifies that the reset button keeps calling the provided reset handler
+   * Verifies that the accessory filters clear action calls the provided reset handler
    */
-  test("reset button calls onReset", () => {
+  test("clear filters button calls onReset", () => {
     const onReset = vi.fn();
     const tree = AccessoryFiltersBar({
       filters,
@@ -127,11 +158,29 @@ describe("AccessoryFiltersBar", () => {
       typeCategory: "bag",
     });
 
-    const resetButton = findElements(tree, (props, type) => type === "button" && props.type === "button")[0];
+    const resetButton = findElements(
+      tree,
+      (props, type) => type === "button" && props.type === "button" && props.children === "Effacer les filtres",
+    )[0];
 
     expect(resetButton).toBeDefined();
     (resetButton.props.onClick as () => void)();
 
     expect(onReset).toHaveBeenCalledTimes(1);
+  });
+
+  /**
+   * Verifies that the accessory filters bar renders the shared clear filters action
+   */
+  test("renders clear filters button", () => {
+    const html = renderToStaticMarkup(createElement(AccessoryFiltersBar, {
+      filters,
+      setFilters: vi.fn(),
+      referenceData,
+      onReset: vi.fn(),
+      typeCategory: "bag",
+    }));
+
+    expect(html).toContain("Effacer les filtres");
   });
 });

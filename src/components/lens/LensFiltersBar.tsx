@@ -3,6 +3,7 @@
 import React from "react";
 import type { LensFilters, LensReferenceData } from "@/lib/lens/types";
 import { DualRangeSlider } from "@/components/lens/DualRangeSlider";
+import { CollapsibleFilters } from "@/components/ui/CollapsibleFilters";
 import { FOCAL_FILTER_MAX } from "@/lib/lens/filter-constants";
 
 export function LensFiltersBar({ filters, setFilters, referenceData, onReset }: { filters: LensFilters; setFilters: (filters: LensFilters) => void; referenceData: LensReferenceData; onReset: () => void }) {
@@ -10,7 +11,7 @@ export function LensFiltersBar({ filters, setFilters, referenceData, onReset }: 
   const formatFocalHighValue = (value: number) => (value >= FOCAL_FILTER_MAX ? `${FOCAL_FILTER_MAX}+ mm` : `${value} mm`);
 
   return (
-    <div className="filters card">
+    <CollapsibleFilters onReset={onReset}>
       <label>Recherche<input value={filters.query} onChange={(event) => setFilters({ ...filters, query: event.target.value })} placeholder="Canon RF 70-200..." /></label>
       <label>Marque<select value={filters.brand} onChange={(event) => setFilters({ ...filters, brand: event.target.value })}><option value="">Toutes</option>{referenceData.brands.map((brand) => <option key={brand.id} value={brand.id}>{brand.name}</option>)}</select></label>
       <label>Monture<select value={filters.mount} onChange={(event) => setFilters({ ...filters, mount: event.target.value })}><option value="">Toutes</option>{referenceData.mounts.map((mount) => <option key={mount.id} value={mount.id}>{mount.name}</option>)}</select></label>
@@ -23,7 +24,6 @@ export function LensFiltersBar({ filters, setFilters, referenceData, onReset }: 
         <DualRangeSlider label="Ouverture à focale min" min={1} max={30} low={filters.apertureAtMinLow} high={filters.apertureAtMinHigh} step={0.1} formatValue={(v) => `f/${v}`} onChange={(range) => setFilters({ ...filters, apertureAtMinLow: range.low, apertureAtMinHigh: range.high })} />
         <DualRangeSlider label="Ouverture à focale max" min={1} max={30} low={filters.apertureAtMaxLow} high={filters.apertureAtMaxHigh} step={0.1} formatValue={(v) => `f/${v}`} onChange={(range) => setFilters({ ...filters, apertureAtMaxLow: range.low, apertureAtMaxHigh: range.high })} />
       </div>
-      <button className="ghost-button" onClick={onReset}>Réinitialiser</button>
-    </div>
+    </CollapsibleFilters>
   );
 }

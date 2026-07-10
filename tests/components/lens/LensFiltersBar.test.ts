@@ -47,6 +47,10 @@ function findElements(
   if ((typeof element.type === "string" || typeof element.type === "function") && predicate(element.props, element.type)) {
     results.push({ type: element.type, props: element.props });
   }
+  if (typeof element.type === "function") {
+    findElements((element.type as (props: Record<string, unknown>) => ReactNode)(element.props), predicate, results);
+    return results;
+  }
   if (element.props && "children" in element.props) {
     findElements(element.props.children as ReactNode, predicate, results);
   }
@@ -54,6 +58,9 @@ function findElements(
 }
 
 describe("LensFiltersBar", () => {
+  /**
+   * Verifies that the lens filters bar renders all type filter choices
+   */
   test("renders type select options Tous Fixe Zoom", () => {
     const html = renderToStaticMarkup(createElement(LensFiltersBar, {
       filters,
@@ -62,12 +69,34 @@ describe("LensFiltersBar", () => {
       onReset: vi.fn(),
     }));
 
+    expect(html).toContain("<details");
+    expect(html).toContain("<summary");
+    expect(html).toContain("Filtres");
     expect(html).toContain("Type");
     expect(html).toContain(">Tous<");
     expect(html).toContain(">Fixe<");
     expect(html).toContain(">Zoom<");
   });
 
+  /**
+   * Verifies that the lens filters panel is collapsed by default
+   */
+  test("is closed by default and renders clear filters action", () => {
+    const html = renderToStaticMarkup(createElement(LensFiltersBar, {
+      filters,
+      setFilters: vi.fn(),
+      referenceData,
+      onReset: vi.fn(),
+    }));
+
+    expect(html).toContain("<details");
+    expect(html).not.toContain("<details open");
+    expect(html).toContain("Effacer les filtres");
+  });
+
+  /**
+   * Verifies that the type select reflects the current lens kind filter
+   */
   test("binds type select value from filters.kind", () => {
     const tree = LensFiltersBar({
       filters: { ...filters, kind: "zoom" },
@@ -80,6 +109,9 @@ describe("LensFiltersBar", () => {
     expect(selects.length).toBeGreaterThan(0);
   });
 
+  /**
+   * Verifies that the focal slider displays the open 300+ upper bound label
+   */
   test("renders focal slider values with 300+ upper bound", () => {
     const html = renderToStaticMarkup(createElement(LensFiltersBar, {
       filters,
@@ -91,6 +123,9 @@ describe("LensFiltersBar", () => {
     expect(html).toContain("0 mm — 300+ mm");
   });
 
+  /**
+   * Verifies that the focal slider keeps the low bound label without plus suffix
+   */
   test("renders focal lower bound at 300 without plus suffix", () => {
     const html = renderToStaticMarkup(createElement(LensFiltersBar, {
       filters: {
@@ -106,6 +141,9 @@ describe("LensFiltersBar", () => {
     expect(html).toContain("300 mm — 300+ mm");
   });
 
+  /**
+   * Verifies that both focal sliders use the shared 300 mm UI maximum
+   */
   test("passes 300 as max to both focal sliders", () => {
     const tree = LensFiltersBar({
       filters,
@@ -126,6 +164,9 @@ describe("LensFiltersBar", () => {
     expect(focalSliders[1].props.max).toBe(300);
   });
 
+  /**
+   * Verifies that focal slider values below the open bound omit the plus suffix
+   */
   test("renders focal slider values below 300 without plus suffix", () => {
     const html = renderToStaticMarkup(createElement(LensFiltersBar, {
       filters: {
@@ -142,6 +183,9 @@ describe("LensFiltersBar", () => {
     expect(html).not.toContain("150+ mm");
   });
 
+  /**
+   * Verifies that changing the type select updates the lens kind filter
+   */
   test("type select onChange updates filters.kind", () => {
     const setFilters = vi.fn();
     const tree = LensFiltersBar({
@@ -157,5 +201,42 @@ describe("LensFiltersBar", () => {
     (typeSelect.props.onChange as (event: { target: { value: string } }) => void)({ target: { value: "prime" } });
 
     expect(setFilters).toHaveBeenCalledWith({ ...filters, kind: "prime" });
+  });
+
+  /**
+   * Verifies that the lens filters clear action calls the provided reset handler
+   */
+  test("clear filters button calls onReset", () => {
+    const onReset = vi.fn();
+    const tree = LensFiltersBar({
+      filters,
+      setFilters: vi.fn(),
+      referenceData,
+      onReset,
+    });
+
+    const resetButton = findElements(
+      tree,
+      (props, type) => type === "button" && props.type === "button" && props.children === "Effacer les filtres",
+    )[0];
+
+    expect(resetButton).toBeDefined();
+    (resetButton.props.onClick as () => void)();
+
+    expect(onReset).toHaveBeenCalledTimes(1);
+  });
+
+  /**
+   * Verifies that the lens filters bar renders the shared clear filters action
+   */
+  test("renders clear filters button", () => {
+    const html = renderToStaticMarkup(createElement(LensFiltersBar, {
+      filters,
+      setFilters: vi.fn(),
+      referenceData,
+      onReset: vi.fn(),
+    }));
+
+    expect(html).toContain("Effacer les filtres");
   });
 });

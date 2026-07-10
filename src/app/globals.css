@@ -104,7 +104,23 @@ button { cursor: pointer; }
 .action-menu-item-danger { color: var(--danger); }
 .action-menu-item-danger:hover { background: #fef2f2; }
 
-.filters { padding: 18px; display: grid; grid-template-columns: repeat(auto-fit, minmax(145px, 1fr)); gap: 14px; align-items: end; }
+.filters-panel { padding: 0; overflow: hidden; }
+.filters-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 18px;
+  cursor: pointer;
+  font-weight: 800;
+  list-style: none;
+}
+.filters-toggle::-webkit-details-marker { display: none; }
+.filters-toggle-icon { transition: transform .2s ease; }
+.filters-panel[open] .filters-toggle-icon { transform: rotate(180deg); }
+.filters-panel-body { padding: 0 18px 18px; display: grid; gap: 16px; border-top: 1px solid var(--line); }
+.filters { padding-top: 18px; display: grid; grid-template-columns: repeat(auto-fit, minmax(145px, 1fr)); gap: 14px; align-items: end; }
+.filters-panel-actions { display: flex; justify-content: flex-end; }
 label { display: grid; gap: 7px; color: #374151; font-weight: 700; font-size: 0.9rem; }
 input, select, textarea { width: 100%; border: 1px solid var(--line); border-radius: 14px; padding: 10px 12px; background: white; color: var(--text); }
 textarea { resize: vertical; }

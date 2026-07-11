@@ -344,6 +344,171 @@ npm run test
 npm run build
 ```
 
+## Déploiement conteneur avec GHCR et Portainer
+
+Le flux recommandé est désormais :
+
+1. **GitHub Actions** build l'image Docker depuis ce dépôt.
+2. Le workflow publie l'image sur **GitHub Container Registry (GHCR)**.
+3. **Portainer** déploie ensuite l'image prébuildée au lieu de reconstruire l'application depuis le code source.
+
+Il n'existe plus de workflow `.github/workflows/deploy.yml` ni de script `scripts/deploy.sh` dans ce dépôt.
+Pour tout déploiement manuel, utilisez directement les commandes `docker compose` adaptées au fichier Compose choisi.
+
+### Images publiées
+
+Le workflow `.github/workflows/publish-image.yml` publie toujours un tag lié au commit :
+
+- `ghcr.io/<owner>/photopark:sha-<commit>`
+
+Et il publie aussi :
+
+- `ghcr.io/<owner>/photopark:latest`
+
+mais uniquement sur les pushes vers `main`, pour éviter qu'un lancement manuel depuis une autre branche n'écrase `latest`.
+
+Le workflow applique aussi une règle de `concurrency` par ref GitHub. Une exécution plus récente sur la même ref annule l'ancienne pour éviter qu'un job retardé republie une image obsolète, surtout pour `latest`.
+
+Le tag `latest` sert au flux simple de Portainer.
+Le tag `sha-<commit>` sert à retrouver facilement une image liée à un commit donné.
+
+> `sha-<commit>` améliore la traçabilité, mais reste un **tag**. Si vous avez besoin d'une référence réellement immuable, déployez un **digest** `@sha256:...`.
+
+### Configuration GitHub
+
+Le workflow se déclenche sur les pushes vers `main` et sur lancement manuel.
+
+Un lancement manuel sert surtout à produire une image adressable par commit (`sha-...`).
+
+Il exécute avant publication :
+
+- `npm ci`
+- `npm run typecheck`
+- `npm run test`
+
+Le push vers GHCR utilise le `GITHUB_TOKEN` du workflow avec permission `packages: write`.
+
+### Configuration Portainer
+
+Le fichier `docker-compose.portainer.yml` est dédié au déploiement Portainer.
+
+Il attend la variable suivante :
+
+| Variable | Obligatoire | Exemple | Description |
+|---|---:|---|---|
+| `PHOTOPARK_IMAGE` | Oui | `ghcr.io/mon-org/photopark:sha-abcdef1` | Image GHCR à déployer depuis Portainer. Remplace le `build: .` côté production. |
+
+Conservez aussi les variables runtime déjà nécessaires :
+
+- `APP_PASSWORD_HASH`
+- `SESSION_SECRET`
+- `APP_PORT`
+- `NEXT_PUBLIC_APSC_CROP_FACTOR`
+- `TRUST_PROXY`
+
+Le volume Docker externe `photopark-data` reste utilisé pour la base SQLite.
+
+### Accès GHCR depuis Portainer
+
+Deux options sont possibles :
+
+1. **Package GHCR public** : Portainer peut tirer l'image sans identifiant.
+2. **Package GHCR privé** : Portainer doit être configuré avec des identifiants GitHub ayant au minimum un droit de lecture sur le package.
+
+En pratique, si le dépôt ou le package reste privé, ajoutez le registry GHCR dans Portainer avec un compte dédié en lecture seule sur le package concerné.
+
+Ne réutilisez pas vos secrets applicatifs (`APP_PASSWORD_HASH`, `SESSION_SECRET`) pour cela : l'accès registry doit rester séparé des secrets runtime.
+
+### Exemple de stack Portainer
+
+```yaml
+services:
+  photopark:
+    image: ${PHOTOPARK_IMAGE:?PHOTOPARK_IMAGE is required}
+    container_name: photopark
+    restart: unless-stopped
+    ports:
+      - "${APP_PORT:-8085}:3000"
+    environment:
+      - NODE_ENV=production
+      - APP_PASSWORD_HASH=${APP_PASSWORD_HASH:?APP_PASSWORD_HASH is required}
+      - SESSION_SECRET=${SESSION_SECRET:?SESSION_SECRET is required}
+      - DATABASE_PATH=/app/data/photos.sqlite
+      - NEXT_PUBLIC_APSC_CROP_FACTOR=${NEXT_PUBLIC_APSC_CROP_FACTOR:-1.5}
+      - TRUST_PROXY=${TRUST_PROXY:-false}
+      - NEXT_TELEMETRY_DISABLED=1
+    volumes:
+      - photopark-data:/app/data
+
+volumes:
+  photopark-data:
+    external: true
+```
+
+### Séparation des fichiers Compose
+
+- `docker-compose.yml` : compose local avec `build: .`
+- `docker-compose.portainer.yml` : production Portainer avec `image:`
+
+Cette séparation évite de mélanger le flux local de build et le flux production de pull d'image.
+
+N'utilisez pas `docker-compose.yml` comme fallback de production Portainer.
+N'utilisez pas non plus `docker-compose.portainer.yml` pour reconstruire l'image depuis le dépôt : ce fichier attend une image GHCR déjà publiée.
+
+### Utilisation manuelle en CLI
+
+Pour un lancement local depuis le dépôt :
+
+```bash
+docker volume create photopark-data
+docker compose -f docker-compose.yml up -d --build
+```
+
+Si vous utilisez `docker-compose.portainer.yml` en CLI avec une image GHCR privée, l'hôte Docker doit d'abord être authentifié sur `ghcr.io` :
+
+```bash
+echo "$GHCR_TOKEN" | docker login ghcr.io -u <github-user> --password-stdin
+docker compose -f docker-compose.portainer.yml pull
+docker compose -f docker-compose.portainer.yml up -d
+```
+
+### Déploiement initial
+
+1. Créez le volume externe si nécessaire :
+
+```bash
+docker volume create photopark-data
+```
+
+2. Ajoutez le registry GHCR dans Portainer.
+3. Si le package GHCR est privé, configurez aussi les identifiants du registry GHCR dans Portainer.
+4. Configurez `PHOTOPARK_IMAGE`, par exemple :
+
+```text
+ghcr.io/mon-org/photopark:sha-abcdef1
+```
+
+Le tag `latest` reste possible pour un flux simple :
+
+```text
+ghcr.io/mon-org/photopark:latest
+```
+
+Mais pour la production, préférez au minimum un tag `sha-...`, et idéalement un digest `@sha256:...`.
+
+5. Déployez la stack via `docker-compose.portainer.yml`.
+6. Si vous utilisez `latest`, vérifiez que Portainer force bien un **pull de la nouvelle image** avant recréation du conteneur, sinon vous risquez de redéployer une image déjà présente en cache.
+
+### Rollback recommandé
+
+En cas de problème, remplacez temporairement `PHOTOPARK_IMAGE` par un tag lié au commit visé :
+
+```text
+ghcr.io/mon-org/photopark:sha-abcdef1
+```
+
+Ou mieux, par un digest si vous le conservez dans votre journal de release.
+
 ## Déploiement serveur personnel
 
 1. Installez les dépendances.

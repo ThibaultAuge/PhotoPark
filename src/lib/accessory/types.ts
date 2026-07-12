@@ -1,6 +1,19 @@
 import type { LensBrand } from "@/lib/lens/types";
 
-export type AccessoryTypeCategory = "bag" | "filter";
+export type AccessoryTypeCategory = "bag" | "filter" | "other";
+export type AccessoryOtherProfile =
+  | "generic"
+  | "battery"
+  | "memory_card"
+  | "card_reader"
+  | "external_storage"
+  | "remote_trigger"
+  | "cleaning"
+  | "color_tool"
+  | "lighting"
+  | "drone_part"
+  | "cable_adapter"
+  | "power";
 export type AccessoryStorageLocation = "bag" | "reserve";
 export type AccessoryMountType = "none" | "threaded" | "magnetic";
 export type AccessoryFilterRole = "general" | "filter" | "adapter" | "hood";
@@ -9,6 +22,7 @@ export type AccessoryType = {
   id: string;
   name: string;
   category: AccessoryTypeCategory;
+  profile: AccessoryOtherProfile | null;
 };
 
 export type AccessoryLensReference = {
@@ -28,6 +42,7 @@ export type Accessory = {
   typeId: string;
   type: string;
   typeCategory: AccessoryTypeCategory;
+  typeProfile: AccessoryOtherProfile | null;
   name: string;
   label: string;
   capacityLiters: number | null;
@@ -42,6 +57,13 @@ export type Accessory = {
   priceEur: number | null;
   carryStyleNotes: string | null;
   capacityNotes: string | null;
+  specCapacity: string | null;
+  specFormat: string | null;
+  specConnection: string | null;
+  specCompatibility: string | null;
+  specPower: string | null;
+  specColorModes: string | null;
+  specVariant: string | null;
   storageLocation: AccessoryStorageLocation;
   mountedOnLensId: string | null;
   mountedOnAccessoryId: string | null;
@@ -60,7 +82,7 @@ export type Accessory = {
   updatedAt: string;
 };
 
-export type AccessoryInput = Omit<Accessory, "id" | "brand" | "type" | "typeCategory" | "label" | "createdAt" | "updatedAt">;
+export type AccessoryInput = Omit<Accessory, "id" | "brand" | "type" | "typeCategory" | "typeProfile" | "label" | "createdAt" | "updatedAt" | "specCapacity" | "specFormat" | "specConnection" | "specCompatibility" | "specPower" | "specColorModes" | "specVariant"> & Partial<Pick<Accessory, "specCapacity" | "specFormat" | "specConnection" | "specCompatibility" | "specPower" | "specColorModes" | "specVariant">>;
 
 export type AccessoryReferenceData = {
   brands: LensBrand[];
@@ -77,6 +99,4 @@ export type AccessoryFilters = {
   tripod: "" | "yes" | "no";
   location: "" | "mounted" | AccessoryStorageLocation;
   mountType: "" | Exclude<AccessoryMountType, "none">;
-  compatibleLensId: string;
-  onlyCompatible: boolean;
 };

@@ -371,6 +371,34 @@ describe("accessory validation", () => {
   });
 
   /**
+   * Verifies that other-accessory spec fields are trimmed and parsed
+   */
+  test("parseAccessoryFormData parses other-accessory spec fields", () => {
+    const formData = new FormData();
+    formData.set("brandId", "11111111-1111-4111-8111-111111111111");
+    formData.set("typeId", "type-other-power");
+    formData.set("name", " Prime 100W ");
+    formData.set("specConnection", " USB-C PD ");
+    formData.set("specCompatibility", " MacBook Pro ");
+    formData.set("specPower", " 100 W ");
+    formData.set("specVariant", " GaN ");
+    formData.set("capacityNotes", " Compact ");
+    formData.set("weightG", "0");
+    formData.set("priceEur", "0");
+
+    expect(parseAccessoryFormData(formData)).toMatchObject({
+      name: "Prime 100W",
+      specConnection: "USB-C PD",
+      specCompatibility: "MacBook Pro",
+      specPower: "100 W",
+      specVariant: "GaN",
+      capacityNotes: "Compact",
+      weightG: 0,
+      priceEur: 0,
+    });
+  });
+
+  /**
    * Verifies that non-integer capacity counts are rejected during parsing
    */
   test("parseAccessoryFormData rejects invalid integer capacity values", () => {

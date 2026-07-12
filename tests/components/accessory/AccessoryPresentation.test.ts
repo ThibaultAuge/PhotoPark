@@ -19,6 +19,7 @@ const bagAccessory: Accessory = {
   typeId: "type-bag",
   type: "Sac à dos",
   typeCategory: "bag",
+  typeProfile: null,
   name: "Everyday Backpack",
   label: "Peak Design Everyday Backpack",
   capacityLiters: 20,
@@ -33,6 +34,13 @@ const bagAccessory: Accessory = {
   priceEur: 299,
   carryStyleNotes: "Confortable",
   capacityNotes: "2 boîtiers + 4 objectifs",
+  specCapacity: null,
+  specFormat: null,
+  specConnection: null,
+  specCompatibility: null,
+  specPower: null,
+  specColorModes: null,
+  specVariant: null,
   storageLocation: "bag",
   mountedOnLensId: null,
   mountedOnAccessoryId: null,
@@ -58,6 +66,7 @@ const filterAccessory: Accessory = {
   typeId: "type-filter",
   type: "Filtre magnétique",
   typeCategory: "filter",
+  typeProfile: null,
   name: "CPL",
   label: "Kase CPL",
   capacityLiters: null,
@@ -67,6 +76,13 @@ const filterAccessory: Accessory = {
   fitsTripod: false,
   carryStyleNotes: null,
   capacityNotes: "Circulaire",
+  specCapacity: null,
+  specFormat: null,
+  specConnection: null,
+  specCompatibility: null,
+  specPower: null,
+  specColorModes: null,
+  specVariant: null,
   storageLocation: "reserve",
   rearMountType: "threaded",
   rearDiameterMm: 52,
@@ -87,6 +103,37 @@ const childFilterAccessory: Accessory = {
   mountedOnAccessoryId: "filter-1",
 };
 
+const otherAccessory: Accessory = {
+  ...bagAccessory,
+  id: "other-1",
+  brand: "Anker",
+  typeId: "type-other",
+  type: "Chargeur USB-C",
+  typeCategory: "other",
+  typeProfile: "power",
+  name: "Prime 100W",
+  label: "Anker Prime 100W",
+  capacityLiters: null,
+  capacityBodies: null,
+  capacityLenses: null,
+  fitsLaptop: false,
+  fitsTripod: false,
+  widthMm: null,
+  heightMm: null,
+  depthMm: null,
+  carryStyleNotes: null,
+  capacityNotes: "Bloc compact",
+  specCapacity: null,
+  specFormat: null,
+  specConnection: "USB-C PD",
+  specCompatibility: "MacBook Pro",
+  specPower: "100 W",
+  specColorModes: null,
+  specVariant: "GaN",
+  weightG: 0,
+  priceEur: 0,
+};
+
 const accessoryMountIndex = new Map([
   [filterAccessory.id, { mountedOnLensId: filterAccessory.mountedOnLensId, mountedOnAccessoryId: filterAccessory.mountedOnAccessoryId }],
   [childFilterAccessory.id, { mountedOnLensId: childFilterAccessory.mountedOnLensId, mountedOnAccessoryId: childFilterAccessory.mountedOnAccessoryId }],
@@ -101,6 +148,7 @@ describe("accessory presentation", () => {
       accessories: [filterAccessory],
       lensLabels,
       accessoryMountIndex,
+      typeCategory: "filter",
       showFilterColumns: true,
       onShowDetail: vi.fn(),
       onEdit: vi.fn(),
@@ -125,6 +173,7 @@ describe("accessory presentation", () => {
       accessories: [],
       lensLabels,
       accessoryMountIndex,
+      typeCategory: "filter",
       showFilterColumns: true,
       onShowDetail: vi.fn(),
       onEdit: vi.fn(),
@@ -177,6 +226,7 @@ describe("accessory presentation", () => {
       accessories: [childFilterAccessory],
       lensLabels,
       accessoryMountIndex,
+      typeCategory: "filter",
       showFilterColumns: true,
       onShowDetail: vi.fn(),
       onEdit: vi.fn(),
@@ -214,6 +264,7 @@ describe("accessory presentation", () => {
       accessories: [bagAccessory],
       lensLabels,
       accessoryMountIndex,
+      typeCategory: "bag",
       showFilterColumns: false,
       onShowDetail: vi.fn(),
       onEdit: vi.fn(),
@@ -248,6 +299,49 @@ describe("accessory presentation", () => {
   });
 
   /**
+   * Verifies that other tables render summary and misc-specific column labels
+   */
+  test("AccessoryTable renders other-accessory summary columns", () => {
+    const html = renderToStaticMarkup(createElement(AccessoryTable, {
+      accessories: [otherAccessory],
+      lensLabels,
+      accessoryMountIndex,
+      typeCategory: "other",
+      showFilterColumns: false,
+      onShowDetail: vi.fn(),
+      onEdit: vi.fn(),
+    }));
+
+    expect(html).toContain("Caractéristiques");
+    expect(html).toContain("Compatibilité / connexion");
+    expect(html).toContain("Variante / puissance");
+    expect(html).toContain("100 W · USB-C PD · MacBook Pro");
+    expect(html).toContain("MacBook Pro");
+    expect(html).toContain("GaN");
+    expect(html).toContain("0.00 €");
+  });
+
+  /**
+   * Verifies that other cards use misc-specific labels and keep zero values
+   */
+  test("AccessoryCard renders other-accessory labels and zero weight", () => {
+    const html = renderToStaticMarkup(createElement(AccessoryCard, {
+      accessory: otherAccessory,
+      lensLabels,
+      accessoryMountIndex,
+      onShowDetail: vi.fn(),
+      onEdit: vi.fn(),
+    }));
+
+    expect(html).toContain("Caractéristiques");
+    expect(html).toContain("Compatibilité / connexion");
+    expect(html).toContain("Variante / puissance");
+    expect(html).toContain("0 g");
+    expect(html).toContain("0.00 €");
+    expect(html).not.toContain("Laptop");
+  });
+
+  /**
    * Verifies that filter detail modals render assembly metadata and notes
    */
   test("AccessoryDetailModal renders filter-specific detail fields", () => {
@@ -265,5 +359,60 @@ describe("accessory presentation", () => {
     expect(html).toContain("Support pare-soleil magnétique");
     expect(html).toContain("Notes");
     expect(html).not.toContain("Transport &amp; confort");
+  });
+
+  /**
+   * Verifies that filter detail modals resolve the root mounted lens through parents
+   */
+  test("AccessoryDetailModal resolves mounted lens through parent accessory chains", () => {
+    const html = renderToStaticMarkup(createElement(AccessoryDetailModal, {
+      accessory: childFilterAccessory,
+      accessories: [filterAccessory, childFilterAccessory],
+      lenses,
+      onClose: vi.fn(),
+      onEdit: vi.fn(),
+    }));
+
+    expect(html).toContain("Canon RF 35mm F1.8");
+    expect(html).toContain("Pile active sur l&#x27;objectif");
+  });
+
+  /**
+   * Verifies that filter detail modals fall back when the parent chain is broken
+   */
+  test("AccessoryDetailModal falls back when mounted parent chain cannot resolve a lens", () => {
+    const html = renderToStaticMarkup(createElement(AccessoryDetailModal, {
+      accessory: childFilterAccessory,
+      accessories: [childFilterAccessory],
+      lenses,
+      onClose: vi.fn(),
+      onEdit: vi.fn(),
+    }));
+
+    expect(html).toContain("Monté derrière une autre pièce");
+    expect(html).not.toContain("Canon RF 35mm F1.8");
+    expect(html).not.toContain("Pile active sur l&#x27;objectif");
+  });
+
+  /**
+   * Verifies that other detail modals render misc-specific spec fields
+   */
+  test("AccessoryDetailModal renders other-accessory detail fields", () => {
+    const html = renderToStaticMarkup(createElement(AccessoryDetailModal, {
+      accessory: otherAccessory,
+      accessories: [otherAccessory],
+      lenses,
+      onClose: vi.fn(),
+      onEdit: vi.fn(),
+    }));
+
+    expect(html).toContain("Caractéristiques");
+    expect(html).toContain("Compatibilité");
+    expect(html).toContain("Connexion");
+    expect(html).toContain("Variante");
+    expect(html).toContain("Puissance");
+    expect(html).toContain("Bloc compact");
+    expect(html).not.toContain("Transport &amp; confort");
+    expect(html).not.toContain("Montage actuel");
   });
 });

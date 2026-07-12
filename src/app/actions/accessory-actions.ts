@@ -66,16 +66,16 @@ export async function unmountAccessoryAction(accessoryId: string): Promise<{ suc
 
 export async function createAccessoryTypeAction(formData: FormData) {
   await assertAuthenticated();
-  const { name, category } = parseAccessoryTypeFormData(formData);
-  createAccessoryType(name, category);
+  const { name, category, profile } = parseAccessoryTypeFormData(formData);
+  createAccessoryType(name, category, profile);
   revalidatePath("/settings/accessory-types");
   revalidatePath("/accessories", "layout");
 }
 
 export async function updateAccessoryTypeAction(id: string, formData: FormData) {
   await assertAuthenticated();
-  const { name, category } = parseAccessoryTypeFormData(formData);
-  updateAccessoryType(id, name, category);
+  const { name, category, profile } = parseAccessoryTypeFormData(formData);
+  updateAccessoryType(id, name, category, profile);
   revalidatePath("/settings/accessory-types");
   revalidatePath("/accessories", "layout");
 }

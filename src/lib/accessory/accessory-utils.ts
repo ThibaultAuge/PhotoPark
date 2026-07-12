@@ -1,6 +1,105 @@
 import { getDerivedFilterAccessoryTypeId } from "@/lib/accessory/accessory-type-ids";
 import { formatPrice, formatWeight } from "@/lib/lens/lens-utils";
-import type { Accessory, AccessoryInput, AccessoryMountType, AccessoryReferenceData } from "@/lib/accessory/types";
+import type { Accessory, AccessoryInput, AccessoryMountType, AccessoryOtherProfile, AccessoryReferenceData } from "@/lib/accessory/types";
+
+type OtherAccessoryFieldKey = "specCapacity" | "specFormat" | "specConnection" | "specCompatibility" | "specPower" | "specColorModes" | "specVariant";
+
+type OtherAccessoryProfileConfig = {
+  label: string;
+  fields: Array<{ key: OtherAccessoryFieldKey; label: string; placeholder?: string }>;
+};
+
+export const OTHER_ACCESSORY_PROFILE_CONFIG: Record<AccessoryOtherProfile, OtherAccessoryProfileConfig> = {
+  generic: {
+    label: "Générique",
+    fields: [],
+  },
+  battery: {
+    label: "Batterie",
+    fields: [
+      { key: "specCapacity", label: "Capacité", placeholder: "Ex. 2280 mAh / 16 Wh" },
+      { key: "specCompatibility", label: "Compatibilité", placeholder: "Ex. Sony A7 IV" },
+      { key: "specVariant", label: "Variante", placeholder: "Ex. NP-FZ100" },
+    ],
+  },
+  memory_card: {
+    label: "Carte mémoire",
+    fields: [
+      { key: "specFormat", label: "Format", placeholder: "Ex. SDXC, CFexpress Type B" },
+      { key: "specCapacity", label: "Capacité", placeholder: "Ex. 128 Go" },
+      { key: "specVariant", label: "Vitesse / classe", placeholder: "Ex. V90, 300 MB/s" },
+    ],
+  },
+  card_reader: {
+    label: "Lecteur de cartes",
+    fields: [
+      { key: "specFormat", label: "Formats supportés", placeholder: "Ex. SD + microSD" },
+      { key: "specConnection", label: "Connexion", placeholder: "Ex. USB-C" },
+      { key: "specVariant", label: "Variante", placeholder: "Ex. Double slot" },
+    ],
+  },
+  external_storage: {
+    label: "Stockage externe",
+    fields: [
+      { key: "specCapacity", label: "Capacité", placeholder: "Ex. 2 To" },
+      { key: "specConnection", label: "Interface", placeholder: "Ex. USB-C 10 Gbps" },
+      { key: "specVariant", label: "Type", placeholder: "Ex. SSD" },
+    ],
+  },
+  remote_trigger: {
+    label: "Télécommande / déclencheur",
+    fields: [
+      { key: "specConnection", label: "Connexion", placeholder: "Ex. Bluetooth, 2.4 GHz" },
+      { key: "specCompatibility", label: "Compatibilité", placeholder: "Ex. Canon R6 / Godox X" },
+      { key: "specVariant", label: "Sous-type", placeholder: "Ex. Déclencheur, intervalomètre" },
+    ],
+  },
+  cleaning: {
+    label: "Nettoyage",
+    fields: [
+      { key: "specCompatibility", label: "Cible", placeholder: "Ex. Capteur, optiques" },
+      { key: "specVariant", label: "Sous-type", placeholder: "Ex. Soufflette, chiffon" },
+    ],
+  },
+  color_tool: {
+    label: "Outil colorimétrique",
+    fields: [
+      { key: "specFormat", label: "Format", placeholder: "Ex. 10 × 15 cm" },
+      { key: "specVariant", label: "Sous-type", placeholder: "Ex. Charte gris neutre" },
+    ],
+  },
+  lighting: {
+    label: "Lampe / éclairage",
+    fields: [
+      { key: "specPower", label: "Puissance", placeholder: "Ex. 60 W" },
+      { key: "specColorModes", label: "Couleurs", placeholder: "Ex. Bi-color, RGB" },
+      { key: "specConnection", label: "Alimentation", placeholder: "Ex. Secteur, NP-F" },
+    ],
+  },
+  drone_part: {
+    label: "Pièce drone",
+    fields: [
+      { key: "specCompatibility", label: "Compatibilité", placeholder: "Ex. DJI Mini 4 Pro" },
+      { key: "specVariant", label: "Sous-type", placeholder: "Ex. Hélice, protection" },
+    ],
+  },
+  cable_adapter: {
+    label: "Câble / adaptateur",
+    fields: [
+      { key: "specFormat", label: "Connectique", placeholder: "Ex. USB-C vers SD" },
+      { key: "specConnection", label: "Fonction", placeholder: "Ex. Charge, data, vidéo" },
+      { key: "specVariant", label: "Variante", placeholder: "Ex. 1 m" },
+    ],
+  },
+  power: {
+    label: "Chargeur / alimentation",
+    fields: [
+      { key: "specPower", label: "Puissance", placeholder: "Ex. 100 W" },
+      { key: "specConnection", label: "Connectique", placeholder: "Ex. USB-C PD" },
+      { key: "specCompatibility", label: "Compatibilité", placeholder: "Ex. NP-FZ100" },
+    ],
+  },
+};
 
 type FilterAccessoryDraft = {
   filterRole: Accessory["filterRole"];
@@ -23,6 +122,13 @@ export function normalizeAccessoryInput(input: AccessoryInput, refs: { brand: st
     type: refs.type,
     label: generateAccessoryLabel({ brand: refs.brand, name: input.name }),
     name: input.name.trim(),
+    specCapacity: input.specCapacity ?? null,
+    specFormat: input.specFormat ?? null,
+    specConnection: input.specConnection ?? null,
+    specCompatibility: input.specCompatibility ?? null,
+    specPower: input.specPower ?? null,
+    specColorModes: input.specColorModes ?? null,
+    specVariant: input.specVariant ?? null,
   };
 }
 
@@ -35,6 +141,27 @@ export function formatAccessoryCapacity(accessory: Pick<Accessory, "capacityLite
 
   if (parts.length > 0) return parts.join(" · ");
   return accessory.capacityNotes?.trim() || "—";
+}
+
+export function isOtherAccessory(accessory: Pick<Accessory, "typeCategory">) {
+  return accessory.typeCategory === "other";
+}
+
+export function getOtherAccessoryProfileConfig(profile: AccessoryOtherProfile | null) {
+  return profile ? OTHER_ACCESSORY_PROFILE_CONFIG[profile] : null;
+}
+
+export function getOtherAccessorySpecEntries(accessory: Pick<Accessory, "typeProfile" | OtherAccessoryFieldKey>) {
+  const config = getOtherAccessoryProfileConfig(accessory.typeProfile);
+  if (!config) return [] as Array<{ label: string; value: string }>;
+  return config.fields
+    .map((field) => ({ label: field.label, value: accessory[field.key]?.trim() ?? "" }))
+    .filter((field) => field.value.length > 0);
+}
+
+export function formatOtherAccessorySummary(accessory: Pick<Accessory, "typeProfile" | OtherAccessoryFieldKey>) {
+  const entries = getOtherAccessorySpecEntries(accessory);
+  return entries.length > 0 ? entries.map((entry) => entry.value).join(" · ") : "—";
 }
 
 export function formatAccessoryDimensions(accessory: Pick<Accessory, "widthMm" | "heightMm" | "depthMm">) {
@@ -68,13 +195,21 @@ export function formatFilterAccessoryLocation(
   lensLabels: ReadonlyMap<string, string>,
   accessoriesById: ReadonlyMap<string, Pick<Accessory, "mountedOnLensId" | "mountedOnAccessoryId">>,
 ) {
+  const mountedLensId = resolveMountedLensId(accessory, accessoriesById);
+  if (mountedLensId) return lensLabels.get(mountedLensId) ?? "Monté";
+
+  return formatAccessoryLocation(accessory);
+}
+
+export function resolveMountedLensId(
+  accessory: Pick<Accessory, "mountedOnLensId" | "mountedOnAccessoryId">,
+  accessoriesById: ReadonlyMap<string, Pick<Accessory, "mountedOnLensId" | "mountedOnAccessoryId">>,
+) {
   const visited = new Set<string>();
   let currentAccessory: Pick<Accessory, "mountedOnLensId" | "mountedOnAccessoryId"> | undefined = accessory;
 
   while (currentAccessory) {
-    if (currentAccessory.mountedOnLensId) {
-      return lensLabels.get(currentAccessory.mountedOnLensId) ?? "Monté";
-    }
+    if (currentAccessory.mountedOnLensId) return currentAccessory.mountedOnLensId;
 
     const parentAccessoryId = currentAccessory.mountedOnAccessoryId;
     if (!parentAccessoryId || visited.has(parentAccessoryId)) break;
@@ -83,7 +218,7 @@ export function formatFilterAccessoryLocation(
     currentAccessory = accessoriesById.get(parentAccessoryId);
   }
 
-  return formatAccessoryLocation(accessory);
+  return null;
 }
 
 export function formatAccessoryInterface(accessory: Pick<Accessory, "rearMountType" | "rearDiameterMm" | "frontMountType" | "frontDiameterMm">) {

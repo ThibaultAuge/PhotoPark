@@ -12,8 +12,8 @@ Application privée Next.js pour inventorier, filtrer, visualiser et comparer du
 - Stockage SQLite local avec `better-sqlite3`.
 - CRUD complet des objectifs, avec statut `Retiré`.
 - Module d’inventaire `Boîtiers` complet avec fiche détail, filtres dédiés, création, modification, suppression et comparaison.
-- Module d’inventaire `Accessoires` avec deux sous-catégories : `Sacs & poches` et `Filtres & bagues`.
-- CRUD complet des accessoires avec fiche détail, filtres dédiés, types d’accessoires catégorisés et assistant de compatibilité pour les montages filtres/bagues.
+- Module d’inventaire `Accessoires` avec trois sous-catégories : `Sacs & poches`, `Filtres & bagues` et `Autres accessoires`.
+- CRUD complet des accessoires avec fiche détail, filtres dédiés, types d’accessoires catégorisés, profils de type pour `Autres accessoires` et assistant de compatibilité pour les montages filtres/bagues.
 - Import client depuis un libellé d’objectif pour préremplir le formulaire.
 - Référentiels administrables pour les marques, les montures, les options, les groupes d’options et les types d’accessoires.
 - Les marques sont partagées entre objectifs, boîtiers et accessoires, avec assignation par domaine (`lenses`, `bodies`, `accessories`).
@@ -25,7 +25,7 @@ Application privée Next.js pour inventorier, filtrer, visualiser et comparer du
 - Tableau desktop et cartes mobile avec type `Fixe`/`Zoom`, plages identiques compactées (`7.8 mm`, `f/4`), badges de statut dont `Retiré`, prix formatés avec espaces pour les milliers et toujours 2 décimales (`3 314.00 €`), et poids formatés avec espaces pour les milliers (`1 079 g`).
 - Filtres par texte, marque, monture, option, type (`Tous`, `Fixe`, `Zoom`), statut et quatre plages numériques réglables par curseurs à double poignée (focale min 0–300 mm, focale max 0–300+ mm, ouverture à focale min f/1–f/30, ouverture à focale max f/1–f/30). Les deux plages de focale démarrent sur `0–300+ mm`. La borne haute `300` est ouverte et signifie `300 mm et plus`.
 - Filtres boîtiers par texte, marque, monture, format capteur, type (`mirrorless`, `dslr`) et statut.
-- Filtres accessoires adaptés à la sous-catégorie : ordinateur/trépied pour les sacs, ou localisation et liaison pour les filtres et bagues.
+- Filtres accessoires adaptés à la sous-catégorie : ordinateur/trépied pour les sacs, localisation et liaison pour les filtres et bagues, et champs dédiés selon le profil pour `Autres accessoires`.
 - Graphique SVG interactif focale/ouverture disposé en mise en page deux colonnes (4/5 graphique, 1/5 liste à cocher) avec zoom molette, pan tactile, sélection et masquage d’objectifs. À l’ouverture, il coche automatiquement les objectifs possédés et non retirés.
 - Comparaison de 2 à 5 objectifs avec différences en gras.
 - Comparaison de 2 à 5 boîtiers via une popup flottante et une modale dédiée.
@@ -51,6 +51,7 @@ flowchart LR
     Accessories --> Bags[Sacs & poches]
     Accessories --> Filters[Filtres & bagues]
     Filters --> Assembly[Assistant de compatibilité]
+    Accessories --> Others[Autres accessoires]
     Accessories --> AccessorySettings[Types d'accessoires]
 ```
 *Figure: Flux entre authentification, inventaires objectifs/boîtiers/accessoires, sous-catégories accessoires, stockage SQLite et vues de visualisation.*
@@ -174,10 +175,11 @@ En revanche, si la modification change ces champs d’identité et entre en coll
 
 ## Inventaire des accessoires
 
-Le module accessoires est divisé en deux sous-catégories :
+Le module accessoires est divisé en trois sous-catégories :
 
 - `/accessories` pour `Sacs & poches` ;
-- `/accessories/filters` pour `Filtres & bagues`.
+- `/accessories/filters` pour `Filtres & bagues` ;
+- `/accessories/others` pour `Autres accessoires`.
 
 ### Sacs & poches
 
@@ -187,7 +189,7 @@ La page `/accessories` propose :
 - des cartes sur mobile ;
 - un menu d’actions compact `…` sur chaque ligne ou carte pour ouvrir les actions `Voir`, `Modifier` ou `Supprimer` ;
 - des filtres par texte, marque, type, statut, compatibilité ordinateur portable et compatibilité trépied ;
-- une fenêtre de détail ;
+- une fenêtre de détail qui affiche aussi l’objectif racine quand l’accessoire est monté via une chaîne d’autres accessoires ;
 - des modales de création, modification et suppression.
 
 Chaque accessoire de cette sous-catégorie peut contenir notamment :
@@ -244,7 +246,36 @@ Chaque élément de cette sous-catégorie peut contenir notamment :
 
 Dans ces vues de liste et de carte, le poids reste affiché pour `Sacs & poches`, mais il est masqué pour `Filtres & bagues`.
 
-Les types d’accessoires se gèrent dans `Paramètres > Types d’accessoires`, avec une catégorie `bag` ou `filter` pour chaque type.
+### Autres accessoires
+
+La page `/accessories/others` inventorie les accessoires divers hors trépieds.
+
+Elle propose :
+
+- une liste en tableau sur desktop ;
+- des cartes sur mobile ;
+- un menu d’actions compact `…` sur chaque ligne ou carte ;
+- des filtres dédiés à cette sous-catégorie ;
+- une fenêtre de détail ;
+- des modales de création, modification et suppression ;
+- des types d’accessoires éditables de catégorie `other` ;
+- des champs conditionnels pilotés par le profil stable du type sélectionné.
+
+Selon le profil du type, un accessoire peut afficher ou stocker des informations comme :
+
+- `specCapacity` ;
+- `specFormat` ;
+- `specConnection` ;
+- `specCompatibility` ;
+- `specPower` ;
+- `specColorModes` ;
+- `specVariant`.
+
+Cette sous-catégorie ne propose pas de comparaison.
+
+Les types d’accessoires se gèrent dans `Paramètres > Types d’accessoires`, avec une catégorie `bag`, `filter` ou `other` pour chaque type.
+
+Pour les types de catégorie `other`, la page de paramètres permet aussi de choisir un profil. Ce profil contrôle les champs spécialisés visibles dans le formulaire, les vues liste/carte et la fiche détail.
 
 Les types par défaut de la catégorie `filter` incluent aussi `Bague de réduction magnétique` et `Bague magnétique`.
 
@@ -563,9 +594,9 @@ Les marques, les montures, les options et les types d’accessoires ne sont plus
 | Marques | `name`, domaines | Une marque peut être liée à plusieurs objectifs, boîtiers et/ou accessoires selon ses domaines autorisés. |
 | Montures | `name`, `sensorType` | Une monture peut être liée à plusieurs objectifs et boîtiers interchangeables. Chaque objectif référence une seule monture. Un boîtier interchangeable référence au plus une monture. Le type de capteur est porté par la monture. |
 | Options | `code`, `description`, `brandId` | Une option est liée à une seule marque. Elle peut être associée à plusieurs objectifs de cette marque. Un objectif peut avoir plusieurs options. |
-| Types d’accessoires | `name`, `category` | Un type peut être lié à plusieurs accessoires. Chaque accessoire référence un seul type. La catégorie détermine s’il apparaît dans `Sacs & poches` ou `Filtres & bagues`. |
+| Types d’accessoires | `name`, `category`, `profile` optionnel | Un type peut être lié à plusieurs accessoires. Chaque accessoire référence un seul type. La catégorie détermine s’il apparaît dans `Sacs & poches`, `Filtres & bagues` ou `Autres accessoires`. Le profil pilote les champs spécialisés des types `other`. |
 
-Les données par défaut ajoutent la marque `Canon`, les montures `Canon RF`, `Canon RF-S`, `Canon EF` et `Canon EF-S`, ainsi que les options `L`, `IS`, `USM` et `STM` liées à Canon. Trois groupes d’options sont également créés : Stabilisation (type *flag*), Motorisation (type *value*) et Série (type *value*), avec les options Canon assignées aux groupes correspondants. L’initialisation crée aussi des types d’accessoires de base pour `Sacs & poches` et `Filtres & bagues`.
+Les données par défaut ajoutent la marque `Canon`, les montures `Canon RF`, `Canon RF-S`, `Canon EF` et `Canon EF-S`, ainsi que les options `L`, `IS`, `USM` et `STM` liées à Canon. Trois groupes d’options sont également créés : Stabilisation (type *flag*), Motorisation (type *value*) et Série (type *value*), avec les options Canon assignées aux groupes correspondants. L’initialisation crée aussi des types d’accessoires de base pour `Sacs & poches`, `Filtres & bagues` et `Autres accessoires`.
 
 Le schéma suivant montre les relations principales entre les inventaires et les référentiels.
 
@@ -587,6 +618,8 @@ erDiagram
     BRANDS {
         text id PK
         text name UK
+        text category
+        text profile
     }
     BRAND_DOMAINS {
         text brandId FK
@@ -677,7 +710,7 @@ Pour les accessoires, l’initialisation SQLite répare aussi d’abord les colo
 
 Au démarrage, l’application migre aussi automatiquement l’ancien type historique `Bague vissée → magnétique` vers les types canoniques actuels de `Filtres & bagues`.
 
-Le schéma courant ajoute aussi la table `brand_domains` pour filtrer les marques par domaine, la table `bodies` pour l’inventaire des boîtiers et les tables `accessory_types` / `accessories` pour l’inventaire des accessoires avec sous-catégories `Sacs & poches` et `Filtres & bagues`.
+Le schéma courant ajoute aussi la table `brand_domains` pour filtrer les marques par domaine, la table `bodies` pour l’inventaire des boîtiers et les tables `accessory_types` / `accessories` pour l’inventaire des accessoires avec sous-catégories `Sacs & poches`, `Filtres & bagues` et `Autres accessoires`.
 
 Avant de lancer une version contenant cette migration sur une base existante, créez une sauvegarde du fichier SQLite.
 

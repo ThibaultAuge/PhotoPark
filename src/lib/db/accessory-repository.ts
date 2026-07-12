@@ -1,11 +1,13 @@
 import { randomUUID } from "node:crypto";
 import type Database from "better-sqlite3";
 import { ACCESSORY_TYPE_IDS, BUILT_IN_ACCESSORY_TYPES, LEGACY_ACCESSORY_TYPE_IDS, getDerivedFilterAccessoryTypeId } from "@/lib/accessory/accessory-type-ids";
-import type { Accessory, AccessoryInput, AccessoryReferenceData, AccessoryType } from "@/lib/accessory/types";
+import type { Accessory, AccessoryInput, AccessoryOtherProfile, AccessoryReferenceData, AccessoryType } from "@/lib/accessory/types";
 import { deriveFilterAccessoryPresentation, generateAccessoryLabel, normalizeAccessoryInput } from "@/lib/accessory/accessory-utils";
 import { getDatabase, listBrandsByDomain, listLenses } from "@/lib/db/lens-repository";
 
 let accessorySchemaReady = false;
+
+const OTHER_PROFILE_VALUES = ["generic", "battery", "memory_card", "card_reader", "external_storage", "remote_trigger", "cleaning", "color_tool", "lighting", "drone_part", "cable_adapter", "power"] as const;
 
 function getAccessoryDatabase() {
   const database = getDatabase();
@@ -26,7 +28,8 @@ function initializeAccessorySchema(database: Database.Database) {
     CREATE TABLE IF NOT EXISTS accessory_types (
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL UNIQUE COLLATE NOCASE,
-      category TEXT NOT NULL DEFAULT 'bag' CHECK(category IN ('bag', 'filter')),
+      category TEXT NOT NULL DEFAULT 'bag' CHECK(category IN ('bag', 'filter', 'other')),
+      profile TEXT,
       createdAt TEXT NOT NULL,
       updatedAt TEXT NOT NULL
     );
@@ -48,6 +51,13 @@ function initializeAccessorySchema(database: Database.Database) {
       priceEur REAL,
       carryStyleNotes TEXT,
       capacityNotes TEXT,
+      specCapacity TEXT,
+      specFormat TEXT,
+      specConnection TEXT,
+      specCompatibility TEXT,
+      specPower TEXT,
+      specColorModes TEXT,
+      specVariant TEXT,
       storageLocation TEXT NOT NULL DEFAULT 'bag' CHECK(storageLocation IN ('bag', 'reserve')),
       mountedOnLensId TEXT REFERENCES lenses(id) ON UPDATE CASCADE ON DELETE SET NULL,
       mountedOnAccessoryId TEXT REFERENCES accessories(id) ON UPDATE CASCADE ON DELETE SET NULL,
@@ -69,8 +79,27 @@ function initializeAccessorySchema(database: Database.Database) {
 }
 
 function ensureAccessorySchemaColumns(database: Database.Database) {
+  const typeTableSql = (database.prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'accessory_types'").get() as { sql?: string } | undefined)?.sql ?? "";
+  if (typeTableSql && !typeTableSql.includes("'other'")) {
+    database.exec(`
+      ALTER TABLE accessory_types RENAME TO accessory_types_legacy;
+      CREATE TABLE accessory_types (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL UNIQUE COLLATE NOCASE,
+        category TEXT NOT NULL DEFAULT 'bag' CHECK(category IN ('bag', 'filter', 'other')),
+        profile TEXT,
+        createdAt TEXT NOT NULL,
+        updatedAt TEXT NOT NULL
+      );
+      INSERT INTO accessory_types (id, name, category, profile, createdAt, updatedAt)
+      SELECT id, name, category, NULL, createdAt, updatedAt FROM accessory_types_legacy;
+      DROP TABLE accessory_types_legacy;
+    `);
+  }
+
   const typeColumns = new Set((database.prepare("PRAGMA table_info(accessory_types)").all() as Array<{ name: string }>).map((column) => column.name));
   if (!typeColumns.has("category")) database.exec("ALTER TABLE accessory_types ADD COLUMN category TEXT NOT NULL DEFAULT 'bag'");
+  if (!typeColumns.has("profile")) database.exec("ALTER TABLE accessory_types ADD COLUMN profile TEXT");
 
   const accessoryColumns = new Set((database.prepare("PRAGMA table_info(accessories)").all() as Array<{ name: string }>).map((column) => column.name));
   const missingColumns = [
@@ -84,6 +113,13 @@ function ensureAccessorySchemaColumns(database: Database.Database) {
     ["filterRole", "TEXT NOT NULL DEFAULT 'general'"],
     ["filterStrength", "TEXT"],
     ["supportsMagneticHood", "INTEGER NOT NULL DEFAULT 0"],
+    ["specCapacity", "TEXT"],
+    ["specFormat", "TEXT"],
+    ["specConnection", "TEXT"],
+    ["specCompatibility", "TEXT"],
+    ["specPower", "TEXT"],
+    ["specColorModes", "TEXT"],
+    ["specVariant", "TEXT"],
   ] as const;
   for (const [name, definition] of missingColumns) {
     if (!accessoryColumns.has(name)) database.exec(`ALTER TABLE accessories ADD COLUMN ${name} ${definition}`);
@@ -102,25 +138,27 @@ function ensureAccessorySchemaIndexes(database: Database.Database) {
 
 function seedAccessoryReferenceData(database: Database.Database) {
   const now = new Date().toISOString();
-  const insert = database.prepare("INSERT OR IGNORE INTO accessory_types (id, name, category, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?)");
+  const insert = database.prepare("INSERT OR IGNORE INTO accessory_types (id, name, category, profile, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?)");
   for (const type of BUILT_IN_ACCESSORY_TYPES) {
-    insert.run(type.id, type.name, type.category, now, now);
+    insert.run(type.id, type.name, type.category, type.profile, now, now);
   }
 }
 
 function reconcileBuiltInAccessoryTypeIds(database: Database.Database) {
-  const selectById = database.prepare("SELECT id, category FROM accessory_types WHERE id = ?");
+  const selectById = database.prepare("SELECT id, category, profile FROM accessory_types WHERE id = ?");
   const selectByName = database.prepare("SELECT id FROM accessory_types WHERE name = ? AND category = ?");
   const updateCategory = database.prepare("UPDATE accessory_types SET category = ?, updatedAt = ? WHERE id = ?");
+  const updateProfile = database.prepare("UPDATE accessory_types SET profile = ?, updatedAt = ? WHERE id = ?");
   const updateId = database.prepare("UPDATE accessory_types SET id = ? WHERE id = ?");
-  const insert = database.prepare("INSERT INTO accessory_types (id, name, category, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?)");
+  const insert = database.prepare("INSERT INTO accessory_types (id, name, category, profile, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?)");
   const now = new Date().toISOString();
 
   const reconcile = database.transaction(() => {
     for (const type of BUILT_IN_ACCESSORY_TYPES) {
-      const existingById = selectById.get(type.id) as { id: string; category: AccessoryType["category"] } | undefined;
+      const existingById = selectById.get(type.id) as { id: string; category: AccessoryType["category"]; profile: AccessoryOtherProfile | null } | undefined;
       if (existingById) {
         if (existingById.category !== type.category) updateCategory.run(type.category, now, type.id);
+        if ((existingById.profile ?? null) !== (type.profile ?? null)) updateProfile.run(type.profile ?? null, now, type.id);
         continue;
       }
 
@@ -130,7 +168,7 @@ function reconcileBuiltInAccessoryTypeIds(database: Database.Database) {
         continue;
       }
 
-      insert.run(type.id, type.name, type.category, now, now);
+      insert.run(type.id, type.name, type.category, type.profile ?? null, now, now);
     }
   });
 
@@ -186,14 +224,14 @@ export function listAccessoryReferenceData(): AccessoryReferenceData {
   const database = getAccessoryDatabase();
   return {
     brands: listBrandsByDomain("accessories"),
-    types: database.prepare("SELECT id, name, category FROM accessory_types ORDER BY category, name COLLATE NOCASE").all() as AccessoryType[],
+    types: database.prepare("SELECT id, name, category, profile FROM accessory_types ORDER BY category, name COLLATE NOCASE").all() as AccessoryType[],
     lenses: listLenses().map((lens) => ({ id: lens.id, label: lens.label, filterDiameterMm: lens.filterDiameterMm, isOwned: lens.isOwned, isFavorite: lens.isFavorite, isNextPurchase: lens.isNextPurchase, retired: lens.retired })),
   };
 }
 
 export function listAccessories(): Accessory[] {
   const database = getAccessoryDatabase();
-  const rows = database.prepare(`SELECT accessories.*, brands.name AS brand, accessory_types.name AS type, accessory_types.category AS typeCategory
+  const rows = database.prepare(`SELECT accessories.*, brands.name AS brand, accessory_types.name AS type, accessory_types.category AS typeCategory, accessory_types.profile AS typeProfile
     FROM accessories
     JOIN brands ON brands.id = accessories.brandId
     JOIN accessory_types ON accessory_types.id = accessories.typeId
@@ -205,19 +243,21 @@ export function createAccessory(input: AccessoryInput) {
   const database = getAccessoryDatabase();
   const persistedInput = deriveAccessoryPersistenceInput(database, input);
   const refs = resolveAccessoryRefs(database, persistedInput);
-  const normalized = normalizeAccessoryInput(persistedInput, refs);
+  const normalized = normalizeAccessoryInput(sanitizeAccessoryInputByCategory(persistedInput, refs.typeCategory), refs);
   assertAccessoryMountConsistency(database, null, normalized, refs.typeCategory);
   const now = new Date().toISOString();
-  const accessory: Accessory = { id: randomUUID(), ...normalized, typeCategory: refs.typeCategory, createdAt: now, updatedAt: now };
+  const accessory: Accessory = { id: randomUUID(), ...normalized, typeCategory: refs.typeCategory, typeProfile: refs.typeProfile, createdAt: now, updatedAt: now };
   database.prepare(`INSERT INTO accessories (
     id, brandId, typeId, name, label, capacityLiters, capacityBodies, capacityLenses, fitsLaptop, fitsTripod,
     widthMm, heightMm, depthMm, weightG, priceEur, carryStyleNotes, capacityNotes,
+    specCapacity, specFormat, specConnection, specCompatibility, specPower, specColorModes, specVariant,
     storageLocation, mountedOnLensId, mountedOnAccessoryId, rearMountType, rearDiameterMm,
     frontMountType, frontDiameterMm, filterRole, filterStrength, supportsMagneticHood,
     isFavorite, isNextPurchase, isOwned, retired, createdAt, updatedAt
   ) VALUES (
     @id, @brandId, @typeId, @name, @label, @capacityLiters, @capacityBodies, @capacityLenses, @fitsLaptop, @fitsTripod,
     @widthMm, @heightMm, @depthMm, @weightG, @priceEur, @carryStyleNotes, @capacityNotes,
+    @specCapacity, @specFormat, @specConnection, @specCompatibility, @specPower, @specColorModes, @specVariant,
     @storageLocation, @mountedOnLensId, @mountedOnAccessoryId, @rearMountType, @rearDiameterMm,
     @frontMountType, @frontDiameterMm, @filterRole, @filterStrength, @supportsMagneticHood,
     @isFavorite, @isNextPurchase, @isOwned, @retired, @createdAt, @updatedAt
@@ -229,13 +269,16 @@ export function updateAccessory(id: string, input: AccessoryInput) {
   const database = getAccessoryDatabase();
   const persistedInput = deriveAccessoryPersistenceInput(database, input);
   const refs = resolveAccessoryRefs(database, persistedInput);
-  const normalized = normalizeAccessoryInput(persistedInput, refs);
+  const normalized = normalizeAccessoryInput(sanitizeAccessoryInputByCategory(persistedInput, refs.typeCategory), refs);
   assertAccessoryMountConsistency(database, id, normalized, refs.typeCategory);
   database.prepare(`UPDATE accessories SET
     brandId=@brandId, typeId=@typeId, name=@name, label=@label, capacityLiters=@capacityLiters,
     capacityBodies=@capacityBodies, capacityLenses=@capacityLenses, fitsLaptop=@fitsLaptop, fitsTripod=@fitsTripod,
     widthMm=@widthMm, heightMm=@heightMm, depthMm=@depthMm, weightG=@weightG, priceEur=@priceEur,
-    carryStyleNotes=@carryStyleNotes, capacityNotes=@capacityNotes, storageLocation=@storageLocation,
+    carryStyleNotes=@carryStyleNotes, capacityNotes=@capacityNotes,
+    specCapacity=@specCapacity, specFormat=@specFormat, specConnection=@specConnection,
+    specCompatibility=@specCompatibility, specPower=@specPower, specColorModes=@specColorModes, specVariant=@specVariant,
+    storageLocation=@storageLocation,
     mountedOnLensId=@mountedOnLensId, mountedOnAccessoryId=@mountedOnAccessoryId, rearMountType=@rearMountType,
     rearDiameterMm=@rearDiameterMm, frontMountType=@frontMountType,
     frontDiameterMm=@frontDiameterMm, filterRole=@filterRole,
@@ -343,23 +386,26 @@ function collectDescendantIds(database: Database.Database, parentId: string): st
   return ids;
 }
 
-export function createAccessoryType(name: string, category: AccessoryType["category"]) {
+export function createAccessoryType(name: string, category: AccessoryType["category"], profile: AccessoryOtherProfile | null) {
   const now = new Date().toISOString();
-  getAccessoryDatabase().prepare("INSERT INTO accessory_types (id, name, category, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?)").run(randomUUID(), name.trim(), category, now, now);
+  getAccessoryDatabase().prepare("INSERT INTO accessory_types (id, name, category, profile, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?)").run(randomUUID(), name.trim(), category, normalizeAccessoryTypeProfile(category, profile), now, now);
 }
 
-export function updateAccessoryType(id: string, name: string, category: AccessoryType["category"]) {
+export function updateAccessoryType(id: string, name: string, category: AccessoryType["category"], profile: AccessoryOtherProfile | null) {
   const database = getAccessoryDatabase();
-  const existing = database.prepare("SELECT category FROM accessory_types WHERE id = ?").get(id) as { category: AccessoryType["category"] } | undefined;
+  const existing = database.prepare("SELECT category, profile FROM accessory_types WHERE id = ?").get(id) as { category: AccessoryType["category"]; profile: AccessoryOtherProfile | null } | undefined;
   if (!existing) throw new Error("Type d'accessoire inconnu.");
   const builtInType = BUILT_IN_ACCESSORY_TYPES.find((type) => type.id === id);
   if (builtInType && category !== builtInType.category) throw new Error("Impossible de changer la catégorie d'un type système requis.");
-  if (existing.category !== category) {
-    const inUse = database.prepare("SELECT 1 FROM accessories WHERE typeId = ? LIMIT 1").get(id);
-    if (inUse) throw new Error("Impossible de changer la catégorie d'un type déjà utilisé par des accessoires.");
+  const normalizedProfile = normalizeAccessoryTypeProfile(category, profile);
+  if (builtInType && normalizedProfile !== (builtInType.profile ?? null)) {
+    throw new Error("Impossible de changer le profil d'un type système requis.");
   }
-  database.prepare("UPDATE accessory_types SET name = ?, category = ?, updatedAt = ? WHERE id = ?").run(name.trim(), category, new Date().toISOString(), id);
-  refreshAccessoryLabels();
+  if (existing.category !== category || (existing.profile ?? null) !== normalizedProfile) {
+    const inUse = database.prepare("SELECT 1 FROM accessories WHERE typeId = ? LIMIT 1").get(id);
+    if (inUse) throw new Error("Impossible de changer la catégorie ou le profil d'un type déjà utilisé par des accessoires.");
+  }
+  database.prepare("UPDATE accessory_types SET name = ?, category = ?, profile = ?, updatedAt = ? WHERE id = ?").run(name.trim(), category, normalizedProfile, new Date().toISOString(), id);
 }
 
 export function deleteAccessoryType(id: string) {
@@ -369,11 +415,11 @@ export function deleteAccessoryType(id: string) {
 
 function resolveAccessoryRefs(database: Database.Database, input: AccessoryInput) {
   const brand = database.prepare("SELECT id, name FROM brands WHERE id = ?").get(input.brandId) as { id: string; name: string } | undefined;
-  const type = database.prepare("SELECT id, name, category FROM accessory_types WHERE id = ?").get(input.typeId) as AccessoryType | undefined;
+  const type = database.prepare("SELECT id, name, category, profile FROM accessory_types WHERE id = ?").get(input.typeId) as AccessoryType | undefined;
   if (!brand || !type) throw new Error("Marque ou type d'accessoire inconnu.");
   const brandInAccessoryDomain = database.prepare("SELECT 1 FROM brand_domains WHERE brandId = ? AND domain = 'accessories'").get(input.brandId);
   if (!brandInAccessoryDomain) throw new Error("Cette marque n'est pas disponible pour les accessoires.");
-  return { brand: brand.name, type: type.name, typeCategory: type.category };
+  return { brand: brand.name, type: type.name, typeCategory: type.category, typeProfile: type.profile ?? null };
 }
 
 function deriveAccessoryPersistenceInput(database: Database.Database, input: AccessoryInput): AccessoryInput {
@@ -415,6 +461,77 @@ function deriveAccessoryPersistenceInput(database: Database.Database, input: Acc
     ...input,
     typeId: derivedType.id,
     name: derived.name,
+  };
+}
+
+function sanitizeAccessoryInputByCategory(input: AccessoryInput, typeCategory: AccessoryType["category"]): AccessoryInput {
+  input = {
+    ...input,
+    specCapacity: input.specCapacity ?? null,
+    specFormat: input.specFormat ?? null,
+    specConnection: input.specConnection ?? null,
+    specCompatibility: input.specCompatibility ?? null,
+    specPower: input.specPower ?? null,
+    specColorModes: input.specColorModes ?? null,
+    specVariant: input.specVariant ?? null,
+  };
+
+  if (typeCategory === "filter") {
+    return {
+      ...input,
+      capacityLiters: null,
+      capacityBodies: null,
+      capacityLenses: null,
+      fitsLaptop: false,
+      fitsTripod: false,
+      widthMm: null,
+      heightMm: null,
+      depthMm: null,
+      carryStyleNotes: null,
+      specCapacity: null,
+      specFormat: null,
+      specConnection: null,
+      specCompatibility: null,
+      specPower: null,
+      specColorModes: null,
+      specVariant: null,
+    };
+  }
+
+  if (typeCategory === "other") {
+    return {
+      ...input,
+      capacityLiters: null,
+      capacityBodies: null,
+      capacityLenses: null,
+      fitsLaptop: false,
+      fitsTripod: false,
+      widthMm: null,
+      heightMm: null,
+      depthMm: null,
+      carryStyleNotes: null,
+      storageLocation: "bag",
+      mountedOnLensId: null,
+      mountedOnAccessoryId: null,
+      rearMountType: "none",
+      rearDiameterMm: null,
+      frontMountType: "none",
+      frontDiameterMm: null,
+      filterRole: "general",
+      filterStrength: null,
+      supportsMagneticHood: false,
+    };
+  }
+
+  return {
+    ...input,
+    specCapacity: null,
+    specFormat: null,
+    specConnection: null,
+    specCompatibility: null,
+    specPower: null,
+    specColorModes: null,
+    specVariant: null,
   };
 }
 
@@ -522,4 +639,10 @@ function toAccessoryDbParams<T extends object>(values: T) {
     isOwned: record.isOwned ? 1 : 0,
     retired: record.retired ? 1 : 0,
   };
+}
+
+function normalizeAccessoryTypeProfile(category: AccessoryType["category"], profile: AccessoryOtherProfile | null) {
+  if (category !== "other") return null;
+  if (!profile || !OTHER_PROFILE_VALUES.includes(profile)) throw new Error("Profil d'accessoire invalide pour la catégorie autres accessoires.");
+  return profile;
 }

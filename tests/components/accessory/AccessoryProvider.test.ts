@@ -9,6 +9,7 @@ const baseAccessory: Accessory = {
   typeId: "t1",
   type: "Sac à dos",
   typeCategory: "bag",
+  typeProfile: null,
   name: "Everyday Backpack",
   label: "Peak Design Everyday Backpack",
   capacityLiters: 20,
@@ -23,6 +24,13 @@ const baseAccessory: Accessory = {
   priceEur: 299,
   carryStyleNotes: "Confortable",
   capacityNotes: "2 boîtiers + 4 objectifs",
+  specCapacity: null,
+  specFormat: null,
+  specConnection: null,
+  specCompatibility: null,
+  specPower: null,
+  specColorModes: null,
+  specVariant: null,
   storageLocation: "bag",
   mountedOnLensId: null,
   mountedOnAccessoryId: null,
@@ -73,6 +81,7 @@ const filterAccessory: Accessory = {
   typeId: "t3",
   type: "Filtre magnétique",
   typeCategory: "filter",
+  typeProfile: null,
   name: "ND64",
   label: "Kase ND64",
   capacityLiters: null,
@@ -108,6 +117,36 @@ const mountedFilterAccessory: Accessory = {
   filterStrength: "CPL",
 };
 
+const otherAccessory: Accessory = {
+  ...baseAccessory,
+  id: "a5",
+  brandId: "b5",
+  brand: "Anker",
+  typeId: "t5",
+  type: "Chargeur USB-C",
+  typeCategory: "other",
+  typeProfile: "power",
+  name: "Prime 100W",
+  label: "Anker Prime 100W",
+  capacityLiters: null,
+  capacityBodies: null,
+  capacityLenses: null,
+  fitsLaptop: false,
+  fitsTripod: false,
+  widthMm: null,
+  heightMm: null,
+  depthMm: null,
+  carryStyleNotes: null,
+  specCapacity: null,
+  specFormat: null,
+  specConnection: "USB-C PD",
+  specCompatibility: "MacBook Pro",
+  specPower: "100 W",
+  specColorModes: null,
+  specVariant: "GaN",
+  storageLocation: "bag",
+};
+
 describe("filterAccessories", () => {
   /**
    * Verifies that default accessory filters only expose the remaining fields
@@ -122,8 +161,6 @@ describe("filterAccessories", () => {
       tripod: "",
       location: "",
       mountType: "",
-      compatibleLensId: "",
-      onlyCompatible: false,
     });
   });
 
@@ -209,6 +246,39 @@ describe("filterAccessories", () => {
     expect(filterAccessories(accessories, { ...defaultAccessoryFilters, mountType: "magnetic" })).toEqual([filterAccessory]);
   });
 
+  /**
+   * Verifies that text queries also match other-accessory spec fields
+   */
+  test("filters other accessories by searchable spec metadata", () => {
+    expect(filterAccessories([otherAccessory], { ...defaultAccessoryFilters, query: "usb-c pd" })).toEqual([otherAccessory]);
+    expect(filterAccessories([otherAccessory], { ...defaultAccessoryFilters, query: "100 w" })).toEqual([otherAccessory]);
+    expect(filterAccessories([otherAccessory], { ...defaultAccessoryFilters, query: "gan" })).toEqual([otherAccessory]);
+    expect(filterAccessories([otherAccessory], { ...defaultAccessoryFilters, query: "macbook" })).toEqual([otherAccessory]);
+  });
+
+  /**
+   * Verifies that switching to other accessories clears bag and filter filters
+   */
+  test("sanitizes filters when switching to the other accessories page", () => {
+    const mixedFilters = {
+      ...defaultAccessoryFilters,
+      laptop: "yes" as const,
+      tripod: "no" as const,
+      location: "mounted" as const,
+      mountType: "magnetic" as const,
+    };
+
+    expect(sanitizeAccessoryFilters(mixedFilters, "other")).toMatchObject({
+      laptop: "",
+      tripod: "",
+      location: "",
+      mountType: "",
+    });
+  });
+
+  /**
+   * Verifies that filter page sanitization preserves filter-only fields
+   */
   test("sanitizes filters when switching between bag and filter pages", () => {
     const mixedFilters = { ...defaultAccessoryFilters, laptop: "yes" as const, tripod: "no" as const, location: "mounted" as const };
 

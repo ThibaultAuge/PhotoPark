@@ -65,6 +65,21 @@ describe("accessory repository", () => {
     expect(typeNames).not.toContain("Bague vissée → magnétique");
   });
 
+  /**
+   * Verifies that reference seeds include built-in other accessory profiles
+   */
+  test("listAccessoryReferenceData includes seeded other accessory types", async () => {
+    useIsolatedDatabasePath();
+    vi.resetModules();
+
+    const { listAccessoryReferenceData } = await import("../../../src/lib/db/accessory-repository");
+
+    expect(listAccessoryReferenceData().types).toEqual(expect.arrayContaining([
+      expect.objectContaining({ id: "a-type-other-battery", category: "other", profile: "battery" }),
+      expect.objectContaining({ id: "a-type-other-power", category: "other", profile: "power" }),
+    ]));
+  });
+
   test("startup reconciles canonical filter types onto stable built-in ids", async () => {
     useIsolatedDatabasePath();
     vi.resetModules();
@@ -181,7 +196,7 @@ describe("accessory repository", () => {
     expect(kaseBrand).toBeDefined();
     expect(magneticType).toBeDefined();
 
-    updateAccessoryType(magneticType!.id, "Anneau magnétique", "filter");
+    updateAccessoryType(magneticType!.id, "Anneau magnétique", "filter", null);
 
     referenceData = listAccessoryReferenceData();
 
@@ -222,6 +237,18 @@ describe("accessory repository", () => {
     expect(created.typeId).toBe(magneticType!.id);
     expect(created.type).toBe("Anneau magnétique");
     expect(created.name).toBe("Bague magnétique 77 mm");
+  });
+
+  test("updateAccessoryType rejects profile changes on required built-in other types", async () => {
+    useIsolatedDatabasePath();
+    vi.resetModules();
+
+    const { listAccessoryReferenceData, updateAccessoryType } = await import("../../../src/lib/db/accessory-repository");
+
+    const batteryType = listAccessoryReferenceData().types.find((type) => type.id === "a-type-other-battery");
+
+    expect(batteryType).toBeDefined();
+    expect(() => updateAccessoryType(batteryType!.id, "Batterie renommée", "other", "power")).toThrow("Impossible de changer le profil d'un type système requis.");
   });
 
   /**
@@ -486,6 +513,137 @@ describe("accessory repository", () => {
       isOwned: true,
       retired: false,
     })).toThrow("Les accessoires hors filtres/bagues ne doivent pas définir d'interface de montage.");
+  });
+
+  /**
+   * Verifies that other accessories persist spec fields and clear bag/filter-only data
+   */
+  test("createAccessory persists other accessory specs with category sanitization", async () => {
+    useIsolatedDatabasePath();
+    vi.resetModules();
+
+    const { createAccessory, listAccessoryReferenceData, listAccessories } = await import("../../../src/lib/db/accessory-repository");
+    const { createBrand } = await import("../../../src/lib/db/lens-repository");
+
+    createBrand("Anker", ["accessories"]);
+
+    const referenceData = listAccessoryReferenceData();
+    const brand = referenceData.brands.find((item) => item.name === "Anker");
+    const powerType = referenceData.types.find((type) => type.id === "a-type-other-power");
+
+    createAccessory({
+      brandId: brand!.id,
+      typeId: powerType!.id,
+      name: "Prime 100W",
+      capacityLiters: 10,
+      capacityBodies: 1,
+      capacityLenses: 2,
+      fitsLaptop: true,
+      fitsTripod: true,
+      widthMm: 120,
+      heightMm: 80,
+      depthMm: 40,
+      weightG: 0,
+      priceEur: 0,
+      carryStyleNotes: "ignored",
+      capacityNotes: "Bloc compact",
+      specCapacity: null,
+      specFormat: null,
+      specConnection: "USB-C PD",
+      specCompatibility: "MacBook Pro",
+      specPower: "100 W",
+      specColorModes: null,
+      specVariant: "GaN",
+      storageLocation: "reserve",
+      mountedOnLensId: null,
+      mountedOnAccessoryId: null,
+      rearMountType: "none",
+      rearDiameterMm: null,
+      frontMountType: "none",
+      frontDiameterMm: null,
+      filterRole: "general",
+      filterStrength: null,
+      supportsMagneticHood: false,
+      isFavorite: false,
+      isNextPurchase: false,
+      isOwned: true,
+      retired: false,
+    });
+
+    const created = listAccessories()[0];
+    expect(created.typeCategory).toBe("other");
+    expect(created.typeProfile).toBe("power");
+    expect(created.specConnection).toBe("USB-C PD");
+    expect(created.specCompatibility).toBe("MacBook Pro");
+    expect(created.specPower).toBe("100 W");
+    expect(created.specVariant).toBe("GaN");
+    expect(created.capacityLiters).toBeNull();
+    expect(created.fitsLaptop).toBe(false);
+    expect(created.storageLocation).toBe("bag");
+    expect(created.rearMountType).toBe("none");
+    expect(created.filterRole).toBe("general");
+    expect(created.weightG).toBe(0);
+    expect(created.priceEur).toBe(0);
+  });
+
+  /**
+   * Verifies that used accessory types cannot change category or profile
+   */
+  test("updateAccessoryType rejects profile changes for used other types", async () => {
+    useIsolatedDatabasePath();
+    vi.resetModules();
+
+    const { createAccessory, listAccessoryReferenceData, updateAccessoryType } = await import("../../../src/lib/db/accessory-repository");
+    const { createBrand } = await import("../../../src/lib/db/lens-repository");
+
+    createBrand("Anker", ["accessories"]);
+
+    const referenceData = listAccessoryReferenceData();
+    const brand = referenceData.brands.find((item) => item.name === "Anker");
+    const batteryType = referenceData.types.find((type) => type.id === "a-type-other-battery");
+
+    createAccessory({
+      brandId: brand!.id,
+      typeId: batteryType!.id,
+      name: "NP-FZ100",
+      capacityLiters: null,
+      capacityBodies: null,
+      capacityLenses: null,
+      fitsLaptop: false,
+      fitsTripod: false,
+      widthMm: null,
+      heightMm: null,
+      depthMm: null,
+      weightG: null,
+      priceEur: null,
+      carryStyleNotes: null,
+      capacityNotes: null,
+      specCapacity: "2280 mAh",
+      specFormat: null,
+      specConnection: null,
+      specCompatibility: "Sony A7 IV",
+      specPower: null,
+      specColorModes: null,
+      specVariant: "Originale",
+      storageLocation: "bag",
+      mountedOnLensId: null,
+      mountedOnAccessoryId: null,
+      rearMountType: "none",
+      rearDiameterMm: null,
+      frontMountType: "none",
+      frontDiameterMm: null,
+      filterRole: "general",
+      filterStrength: null,
+      supportsMagneticHood: false,
+      isFavorite: false,
+      isNextPurchase: false,
+      isOwned: true,
+      retired: false,
+    });
+
+    expect(() => updateAccessoryType(batteryType!.id, "Batterie", "other", "power")).toThrow(
+      "Impossible de changer le profil d'un type système requis.",
+    );
   });
 
   /**

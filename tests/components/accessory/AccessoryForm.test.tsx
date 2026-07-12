@@ -39,8 +39,10 @@ vi.mock("@/app/actions/accessory-actions", () => ({
 const referenceData: AccessoryReferenceData = {
   brands: [{ id: "brand-1", name: "Peak Design" }],
   types: [
-    { id: "type-bag", name: "Sac à dos", category: "bag" },
-    { id: "type-filter", name: "Filtre", category: "filter" },
+    { id: "type-bag", name: "Sac à dos", category: "bag", profile: null },
+    { id: "type-filter", name: "Filtre", category: "filter", profile: null },
+    { id: "type-other-battery", name: "Batterie", category: "other", profile: "battery" },
+    { id: "type-other-generic", name: "Accessoire générique", category: "other", profile: "generic" },
   ],
   lenses: [{ id: "lens-1", label: "Canon RF 24-70mm f/2.8", filterDiameterMm: 82, isOwned: true, isFavorite: false, isNextPurchase: false, retired: false }],
 };
@@ -52,6 +54,7 @@ const existingAccessory: Accessory = {
   typeId: "type-bag",
   type: "Sac à dos",
   typeCategory: "bag",
+  typeProfile: null,
   name: "Everyday Backpack",
   label: "Peak Design Everyday Backpack",
   capacityLiters: 20,
@@ -66,6 +69,13 @@ const existingAccessory: Accessory = {
   priceEur: 279,
   carryStyleNotes: null,
   capacityNotes: null,
+  specCapacity: null,
+  specFormat: null,
+  specConnection: null,
+  specCompatibility: null,
+  specPower: null,
+  specColorModes: null,
+  specVariant: null,
   storageLocation: "bag",
   mountedOnLensId: null,
   mountedOnAccessoryId: null,
@@ -91,6 +101,7 @@ const existingFilterAccessory: Accessory = {
   typeId: "type-filter",
   type: "Filtre",
   typeCategory: "filter",
+  typeProfile: null,
   name: "Bague magnétique 77 mm avec pare-soleil",
   label: "Peak Design Bague magnétique 77 mm avec pare-soleil",
   capacityLiters: null,
@@ -105,6 +116,13 @@ const existingFilterAccessory: Accessory = {
   priceEur: null,
   carryStyleNotes: null,
   capacityNotes: null,
+  specCapacity: null,
+  specFormat: null,
+  specConnection: null,
+  specCompatibility: null,
+  specPower: null,
+  specColorModes: null,
+  specVariant: null,
   storageLocation: "bag",
   mountedOnLensId: null,
   mountedOnAccessoryId: null,
@@ -137,6 +155,33 @@ const stackableFilterAccessory: Accessory = {
   filterRole: "filter",
   filterStrength: "CPL",
   supportsMagneticHood: false,
+};
+
+const existingOtherAccessory: Accessory = {
+  ...existingAccessory,
+  id: "accessory-other-1",
+  typeId: "type-other-battery",
+  type: "Batterie",
+  typeCategory: "other",
+  typeProfile: "battery",
+  name: "NP-FZ100",
+  label: "Peak Design NP-FZ100",
+  specCapacity: "2280 mAh / 16 Wh",
+  specFormat: null,
+  specConnection: null,
+  specCompatibility: "Sony A7 IV",
+  specPower: null,
+  specColorModes: null,
+  specVariant: "Originale",
+  capacityLiters: null,
+  capacityBodies: null,
+  capacityLenses: null,
+  fitsLaptop: false,
+  fitsTripod: false,
+  widthMm: null,
+  heightMm: null,
+  depthMm: null,
+  carryStyleNotes: null,
 };
 
 function findElement(node: ReactNode, predicate: (element: { type: unknown; props: Record<string, unknown> }) => boolean): { type: unknown; props: Record<string, unknown> } | undefined {
@@ -175,7 +220,7 @@ function renderFormElement({
   onClose?: () => void;
   accessory?: Accessory;
   formCurrent?: unknown;
-  typeCategory?: "bag" | "filter";
+   typeCategory?: "bag" | "filter" | "other";
   accessoryList?: Accessory[];
   refs?: AccessoryReferenceData;
 }) {
@@ -318,9 +363,9 @@ describe("AccessoryForm", () => {
     const filterReferenceData: AccessoryReferenceData = {
       ...referenceData,
       types: [
-        { id: ACCESSORY_TYPE_IDS.filter, name: "Filtre", category: "filter" },
-        { id: ACCESSORY_TYPE_IDS.magneticStepRing, name: "Bague de réduction magnétique", category: "filter" },
-        { id: ACCESSORY_TYPE_IDS.magneticBaseRing, name: "Bague magnétique", category: "filter" },
+        { id: ACCESSORY_TYPE_IDS.filter, name: "Filtre", category: "filter", profile: null },
+        { id: ACCESSORY_TYPE_IDS.magneticStepRing, name: "Bague de réduction magnétique", category: "filter", profile: null },
+        { id: ACCESSORY_TYPE_IDS.magneticBaseRing, name: "Bague magnétique", category: "filter", profile: null },
       ],
     };
 
@@ -398,6 +443,52 @@ describe("AccessoryForm", () => {
     expect(stateSetters[0]).toHaveBeenCalledWith(
       "Combinaison non prise en charge. Utilise uniquement vis→vis (diamètres différents), vis→magnétique ou magnétique→magnétique.",
     );
+  });
+
+  /**
+   * Verifies that other accessories render profile-specific fields for the type
+   */
+  test("renders profile-driven fields for other accessories", () => {
+    const { node } = renderFormElement({
+      accessory: existingOtherAccessory,
+      typeCategory: "other",
+      accessoryList: [existingOtherAccessory],
+    });
+
+    const specCapacityInput = findElement(node, (element) => element.type === "input" && element.props.name === "specCapacity");
+    const specCompatibilityInput = findElement(node, (element) => element.type === "input" && element.props.name === "specCompatibility");
+    const specVariantInput = findElement(node, (element) => element.type === "input" && element.props.name === "specVariant");
+    const hiddenRearMountType = findElement(node, (element) => element.type === "input" && element.props.name === "rearMountType" && element.props.type === "hidden");
+
+    expect(specCapacityInput?.props.defaultValue).toBe("2280 mAh / 16 Wh");
+    expect(specCompatibilityInput?.props.defaultValue).toBe("Sony A7 IV");
+    expect(specVariantInput?.props.defaultValue).toBe("Originale");
+    expect(hiddenRearMountType?.props.value).toBe("none");
+  });
+
+  /**
+   * Verifies that generic other accessories show the no-dedicated-fields help
+   */
+  test("renders generic other profile help when no dedicated fields exist", () => {
+    const genericOtherAccessory = {
+      ...existingOtherAccessory,
+      typeId: "type-other-generic",
+      type: "Accessoire générique",
+      typeProfile: "generic" as const,
+    };
+
+    const { node } = renderFormElement({
+      accessory: genericOtherAccessory,
+      typeCategory: "other",
+      accessoryList: [genericOtherAccessory],
+    });
+
+    const helpText = findElement(
+      node,
+      (element) => element.type === "p" && element.props.className === "form-help" && String(element.props.children).includes("pas de champ dédié"),
+    );
+
+    expect(helpText).toBeDefined();
   });
 
   /**

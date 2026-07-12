@@ -9,8 +9,9 @@ import type { AccessoryFilters, AccessoryReferenceData } from "../../../src/lib/
 const referenceData: AccessoryReferenceData = {
   brands: [{ id: "brand-a", name: "Peak Design" }],
   types: [
-    { id: "type-a", name: "Sac à dos", category: "bag" },
-    { id: "type-b", name: "Bague magnétique", category: "filter" },
+    { id: "type-a", name: "Sac à dos", category: "bag", profile: null },
+    { id: "type-b", name: "Bague magnétique", category: "filter", profile: null },
+    { id: "type-c", name: "Batterie", category: "other", profile: "battery" },
   ],
   lenses: [],
 };
@@ -24,8 +25,6 @@ const filters: AccessoryFilters = {
   tripod: "",
   location: "",
   mountType: "",
-  compatibleLensId: "",
-  onlyCompatible: false,
 };
 
 function findElements(
@@ -120,8 +119,38 @@ describe("AccessoryFiltersBar", () => {
       typeCategory: "filter",
     }));
 
+    const otherHtml = renderToStaticMarkup(createElement(AccessoryFiltersBar, {
+      filters,
+      setFilters: vi.fn(),
+      referenceData,
+      onReset: vi.fn(),
+      typeCategory: "other",
+    }));
+
     expect(bagHtml).toContain('placeholder="Marque, nom, notes..."');
     expect(filterHtml).toContain('placeholder="Marque, nom, force, notes..."');
+    expect(otherHtml).toContain('placeholder="Marque, nom, caractéristiques, notes..."');
+  });
+
+  /**
+   * Verifies that other mode hides bag and filter controls and scopes type options
+   */
+  test("renders other-accessory fields without bag or filter controls", () => {
+    const html = renderToStaticMarkup(createElement(AccessoryFiltersBar, {
+      filters,
+      setFilters: vi.fn(),
+      referenceData,
+      onReset: vi.fn(),
+      typeCategory: "other",
+    }));
+
+    expect(html).toContain("Batterie");
+    expect(html).not.toContain("Sac à dos");
+    expect(html).not.toContain("Bague magnétique");
+    expect(html).not.toContain("Laptop");
+    expect(html).not.toContain("Trépied");
+    expect(html).not.toContain("Localisation");
+    expect(html).not.toContain("Liaison");
   });
 
   /**

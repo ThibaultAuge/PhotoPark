@@ -16,11 +16,26 @@ describe("AccessoryTypeManager", () => {
    */
   test("renders compact action menu for existing accessory types", () => {
     const html = renderToStaticMarkup(createElement(AccessoryTypeManager, {
-      types: [{ id: "type-1", name: "Sac à dos", category: "bag" }],
+      types: [{ id: "type-1", name: "Sac à dos", category: "bag", profile: null }],
     }));
 
     expect(html).toContain('aria-label="Actions pour Sac à dos"');
     expect(html).toContain("OK");
     expect(html).toContain("Supprimer");
+  });
+
+  /**
+   * Verifies that accessory type forms expose the other category and profiles
+   */
+  test("renders other category and profile options", () => {
+    const html = renderToStaticMarkup(createElement(AccessoryTypeManager, {
+      types: [{ id: "type-2", name: "Batterie", category: "other", profile: "battery" }],
+    }));
+
+    expect(html).toContain("Autres accessoires");
+    expect(html).toContain("Batterie");
+    expect(html).toContain("Chargeur / alimentation");
+    expect(html).toContain('value="other" selected');
+    expect(html).toContain('value="battery" selected');
   });
 });

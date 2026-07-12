@@ -11,6 +11,7 @@ const bagAccessory: Accessory = {
   typeId: "type-bag",
   type: "Sac à dos",
   typeCategory: "bag",
+  typeProfile: null,
   name: "Everyday Backpack",
   label: "Peak Design Everyday Backpack",
   capacityLiters: 20,
@@ -25,6 +26,13 @@ const bagAccessory: Accessory = {
   priceEur: 299,
   carryStyleNotes: "Confortable",
   capacityNotes: "2 boîtiers + 4 objectifs",
+  specCapacity: null,
+  specFormat: null,
+  specConnection: null,
+  specCompatibility: null,
+  specPower: null,
+  specColorModes: null,
+  specVariant: null,
   storageLocation: "bag",
   mountedOnLensId: null,
   mountedOnAccessoryId: null,
@@ -50,6 +58,7 @@ const mountedFilterAccessory: Accessory = {
   typeId: "type-filter",
   type: "Filtre magnétique",
   typeCategory: "filter",
+  typeProfile: null,
   name: "CPL",
   label: "Kase CPL",
   capacityLiters: null,
@@ -81,6 +90,31 @@ const childFilterAccessory: Accessory = {
   filterRole: "adapter",
 };
 
+const otherAccessory: Accessory = {
+  ...bagAccessory,
+  id: "other-1",
+  brand: "Anker",
+  typeId: "type-other",
+  type: "Chargeur USB-C",
+  typeCategory: "other",
+  typeProfile: "power",
+  name: "Prime 100W",
+  label: "Anker Prime 100W",
+  capacityLiters: null,
+  capacityBodies: null,
+  capacityLenses: null,
+  fitsLaptop: false,
+  fitsTripod: false,
+  widthMm: null,
+  heightMm: null,
+  depthMm: null,
+  carryStyleNotes: null,
+  specConnection: "USB-C PD",
+  specCompatibility: "MacBook Pro",
+  specPower: "100 W",
+  specVariant: "GaN",
+};
+
 const referenceData: AccessoryReferenceData = {
   brands: [],
   types: [],
@@ -107,8 +141,6 @@ const mockContext = vi.hoisted(() => ({
     tripod: "",
     location: "",
     mountType: "",
-    compatibleLensId: "",
-    onlyCompatible: false,
   },
   setFilters: vi.fn(),
   resetFilters: vi.fn(),
@@ -119,7 +151,6 @@ const mockContext = vi.hoisted(() => ({
   showCreate: false,
   setShowCreate: vi.fn(),
   initialAccessories: [] as Accessory[],
-  filteredAccessories: [] as Accessory[],
   referenceData: { brands: [], types: [], lenses: [] } as AccessoryReferenceData,
 }));
 
@@ -156,6 +187,7 @@ vi.mock("@/components/accessory/FilterAssemblyAssistant", () => ({
 }));
 
 import { AccessoryCard } from "@/components/accessory/AccessoryCard";
+import { AccessoryFiltersBar } from "@/components/accessory/AccessoryFiltersBar";
 import { AccessoryTable } from "@/components/accessory/AccessoryTable";
 import { FilterAssemblyAssistant } from "@/components/accessory/FilterAssemblyAssistant";
 import { AccessoryListPage } from "../../../src/components/accessory/AccessoryListPage";
@@ -171,11 +203,8 @@ describe("AccessoryListPage", () => {
       tripod: "",
       location: "",
       mountType: "",
-      compatibleLensId: "",
-      onlyCompatible: false,
     };
-    mockContext.initialAccessories = [bagAccessory, mountedFilterAccessory, childFilterAccessory];
-    mockContext.filteredAccessories = [mountedFilterAccessory, childFilterAccessory];
+    mockContext.initialAccessories = [bagAccessory, mountedFilterAccessory, childFilterAccessory, otherAccessory];
     mockContext.referenceData = referenceData;
     vi.clearAllMocks();
   });
@@ -211,5 +240,46 @@ describe("AccessoryListPage", () => {
 
     expect(assistantProps.accessories).toEqual([mountedFilterAccessory, childFilterAccessory]);
     expect(assistantProps.lenses).toEqual(referenceData.lenses);
+  });
+
+  /**
+   * Verifies that other pages scope views to other accessories and skip assembly UI
+   */
+  test("passes only other accessories to table and cards", () => {
+    const html = renderToStaticMarkup(createElement(AccessoryListPage, { typeCategory: "other" }));
+    const tableProps = vi.mocked(AccessoryTable).mock.calls[0]?.[0];
+    const cardProps = vi.mocked(AccessoryCard).mock.calls[0]?.[0];
+
+    expect(html).toContain("Autres accessoires");
+    expect(html).toContain("Ajouter un accessoire");
+    expect(tableProps.accessories).toEqual([otherAccessory]);
+    expect(tableProps.showFilterColumns).toBe(false);
+    expect(cardProps.accessory).toEqual(otherAccessory);
+    expect(vi.mocked(FilterAssemblyAssistant)).not.toHaveBeenCalled();
+  });
+
+  /**
+   * Verifies that the page derives category-compatible filters for rendering
+   * instead of trusting stale shared filtered results from another subcategory.
+   */
+  test("uses sanitized shared filters to derive the rendered list immediately", () => {
+    mockContext.filters = {
+      query: "",
+      brand: "",
+      type: "",
+      status: "",
+      laptop: "yes",
+      tripod: "",
+      location: "",
+      mountType: "",
+    };
+
+    renderToStaticMarkup(createElement(AccessoryListPage, { typeCategory: "other" }));
+
+    const tableProps = vi.mocked(AccessoryTable).mock.calls[0]?.[0];
+    const filtersBarProps = vi.mocked(AccessoryFiltersBar).mock.calls[0]?.[0];
+
+    expect(tableProps.accessories).toEqual([otherAccessory]);
+    expect(filtersBarProps.filters.laptop).toBe("");
   });
 });

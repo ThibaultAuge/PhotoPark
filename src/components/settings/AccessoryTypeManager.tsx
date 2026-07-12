@@ -4,6 +4,7 @@ import React from "react";
 import { useRef, useState } from "react";
 import { createAccessoryTypeAction, deleteAccessoryTypeAction, updateAccessoryTypeAction } from "@/app/actions/accessory-actions";
 import type { AccessoryType } from "@/lib/accessory/types";
+import { OTHER_ACCESSORY_PROFILE_CONFIG } from "@/lib/accessory/accessory-utils";
 import { ActionMenu, ActionMenuButton } from "@/components/ui/ActionMenu";
 
 export function AccessoryTypeManager({ types }: { types: AccessoryType[] }) {
@@ -31,6 +32,11 @@ export function AccessoryTypeManager({ types }: { types: AccessoryType[] }) {
             <select name="category" defaultValue="bag">
               <option value="bag">Sacs & poches</option>
               <option value="filter">Filtres & bagues</option>
+              <option value="other">Autres accessoires</option>
+            </select>
+            <select name="profile" defaultValue="">
+              <option value="">Aucun profil</option>
+              {Object.entries(OTHER_ACCESSORY_PROFILE_CONFIG).map(([profile, config]) => <option key={profile} value={profile}>{config.label}</option>)}
             </select>
             <button className="primary-button" type="submit">Ajouter</button>
           </form>
@@ -45,6 +51,11 @@ export function AccessoryTypeManager({ types }: { types: AccessoryType[] }) {
                 <select name="category" defaultValue={type.category}>
                   <option value="bag">Sacs & poches</option>
                   <option value="filter">Filtres & bagues</option>
+                  <option value="other">Autres accessoires</option>
+                </select>
+                <select name="profile" defaultValue={type.profile ?? ""}>
+                  <option value="">Aucun profil</option>
+                  {Object.entries(OTHER_ACCESSORY_PROFILE_CONFIG).map(([profile, config]) => <option key={profile} value={profile}>{config.label}</option>)}
                 </select>
                 <ActionMenu label={`Actions pour ${type.name}`}>
                   <ActionMenuButton type="submit">OK</ActionMenuButton>

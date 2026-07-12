@@ -14,6 +14,7 @@ describe("accessory reference validation", () => {
     expect(accessoryTypeSchema.parse({ name: "  Sac à dos  " })).toEqual({
       name: "Sac à dos",
       category: "bag",
+      profile: null,
     });
   });
 
@@ -38,7 +39,7 @@ describe("accessory reference validation", () => {
     const formData = new FormData();
     formData.set("name", "  Besace  ");
 
-    expect(parseAccessoryTypeFormData(formData)).toEqual({ name: "Besace", category: "bag" });
+    expect(parseAccessoryTypeFormData(formData)).toEqual({ name: "Besace", category: "bag", profile: null });
   });
 
   /**
@@ -49,6 +50,29 @@ describe("accessory reference validation", () => {
     formData.set("name", "Bague magnétique");
     formData.set("category", "filter");
 
-    expect(parseAccessoryTypeFormData(formData)).toEqual({ name: "Bague magnétique", category: "filter" });
+    expect(parseAccessoryTypeFormData(formData)).toEqual({ name: "Bague magnétique", category: "filter", profile: null });
+  });
+
+  test("parseAccessoryTypeFormData parses other accessory profiles", () => {
+    const formData = new FormData();
+    formData.set("name", "Batterie drone");
+    formData.set("category", "other");
+    formData.set("profile", "battery");
+
+    expect(parseAccessoryTypeFormData(formData)).toEqual({ name: "Batterie drone", category: "other", profile: "battery" });
+  });
+
+  /**
+   * Verifies that other accessory types require a profile
+   */
+  test("accessoryTypeSchema rejects other category without profile", () => {
+    expect(() => accessoryTypeSchema.parse({ name: "Chargeur", category: "other", profile: null })).toThrow(ZodError);
+  });
+
+  /**
+   * Verifies that non-other categories reject an other-only profile
+   */
+  test("accessoryTypeSchema rejects profiles on non-other categories", () => {
+    expect(() => accessoryTypeSchema.parse({ name: "Sac à dos", category: "bag", profile: "battery" })).toThrow(ZodError);
   });
 });

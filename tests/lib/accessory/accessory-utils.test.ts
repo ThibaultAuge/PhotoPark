@@ -1,15 +1,15 @@
 import { describe, expect, test } from "vitest";
-import { deriveFilterAccessoryPresentation, formatFilterAccessoryLocation, resolveFilterAccessoryTypeId } from "../../../src/lib/accessory/accessory-utils";
+import { deriveFilterAccessoryPresentation, formatFilterAccessoryLocation, formatOtherAccessorySummary, getOtherAccessoryProfileConfig, getOtherAccessorySpecEntries, resolveFilterAccessoryTypeId, resolveMountedLensId } from "../../../src/lib/accessory/accessory-utils";
 import type { Accessory, AccessoryReferenceData } from "../../../src/lib/accessory/types";
 
 const referenceData: AccessoryReferenceData = {
   brands: [],
   types: [
-    { id: "a-type-filter", name: "Filtre", category: "filter" },
-    { id: "a-type-step-ring", name: "Bague de conversion", category: "filter" },
-    { id: "a-type-magnetic-step-ring", name: "Bague de réduction magnétique", category: "filter" },
-    { id: "a-type-magnetic-base-ring", name: "Bague magnétique", category: "filter" },
-    { id: "a-type-hood-adapter", name: "Adaptateur / pare-soleil magnétique", category: "filter" },
+    { id: "a-type-filter", name: "Filtre", category: "filter", profile: null },
+    { id: "a-type-step-ring", name: "Bague de conversion", category: "filter", profile: null },
+    { id: "a-type-magnetic-step-ring", name: "Bague de réduction magnétique", category: "filter", profile: null },
+    { id: "a-type-magnetic-base-ring", name: "Bague magnétique", category: "filter", profile: null },
+    { id: "a-type-hood-adapter", name: "Adaptateur / pare-soleil magnétique", category: "filter", profile: null },
   ],
   lenses: [],
 };
@@ -146,6 +146,9 @@ describe("resolveFilterAccessoryTypeId", () => {
     expect(resolveFilterAccessoryTypeId(referenceData, "Bague vissée → magnétique")).toBe("");
   });
 
+  /**
+   * Verifies that canonical derived names still resolve after display renames
+   */
   test("resolves canonical filter type ids even when display names were renamed", () => {
     expect(resolveFilterAccessoryTypeId({
       ...referenceData,
@@ -233,5 +236,90 @@ describe("formatFilterAccessoryLocation", () => {
     }, new Map([
       ["lens-1", "Canon RF 35mm F1.8"],
     ]), new Map())).toBe("Monté");
+  });
+});
+
+describe("resolveMountedLensId", () => {
+  /**
+   * Verifies that nested parent chains resolve the root mounted lens id
+   */
+  test("resolves the root mounted lens id through parent accessory chains", () => {
+    expect(resolveMountedLensId({
+      mountedOnLensId: null,
+      mountedOnAccessoryId: "ring-2",
+    }, new Map([
+      ["ring-1", { mountedOnLensId: "lens-1", mountedOnAccessoryId: null }],
+      ["ring-2", { mountedOnLensId: null, mountedOnAccessoryId: "ring-1" }],
+    ]))).toBe("lens-1");
+  });
+
+  /**
+   * Verifies that broken or cyclic parent chains return no mounted lens id
+   */
+  test("returns null for broken or cyclic parent chains", () => {
+    expect(resolveMountedLensId({
+      mountedOnLensId: null,
+      mountedOnAccessoryId: "missing-parent",
+    }, new Map())).toBeNull();
+
+    expect(resolveMountedLensId({
+      mountedOnLensId: null,
+      mountedOnAccessoryId: "ring-1",
+    }, new Map([
+      ["ring-1", { mountedOnLensId: null, mountedOnAccessoryId: "ring-2" }],
+      ["ring-2", { mountedOnLensId: null, mountedOnAccessoryId: "ring-1" }],
+    ]))).toBeNull();
+  });
+});
+
+describe("other accessory helpers", () => {
+  /**
+   * Verifies that profile config exposes the dedicated battery fields
+   */
+  test("returns the battery profile configuration", () => {
+    expect(getOtherAccessoryProfileConfig("battery")).toMatchObject({
+      label: "Batterie",
+      fields: [
+        { key: "specCapacity", label: "Capacité" },
+        { key: "specCompatibility", label: "Compatibilité" },
+        { key: "specVariant", label: "Variante" },
+      ],
+    });
+  });
+
+  /**
+   * Verifies that other spec entries omit blank values and preserve labels
+   */
+  test("returns labeled other-accessory spec entries", () => {
+    expect(getOtherAccessorySpecEntries({
+      typeProfile: "power",
+      specCapacity: null,
+      specFormat: null,
+      specConnection: "USB-C PD",
+      specCompatibility: "MacBook Pro",
+      specPower: "100 W",
+      specColorModes: " ",
+      specVariant: "GaN",
+    })).toEqual([
+      { label: "Puissance", value: "100 W" },
+      { label: "Connectique", value: "USB-C PD" },
+      { label: "Compatibilité", value: "MacBook Pro" },
+    ]);
+  });
+
+  /**
+   * Verifies that other summaries join only configured non-empty values
+   */
+  test("formats other-accessory summaries from configured spec values", () => {
+    expect(formatOtherAccessorySummary({
+      typeProfile: "power",
+      specCapacity: null,
+      specFormat: null,
+      specConnection: "USB-C PD",
+      specCompatibility: "",
+      specPower: "100 W",
+      specColorModes: null,
+      specVariant: "",
+    })).toBe("100 W · USB-C PD");
   });
 });

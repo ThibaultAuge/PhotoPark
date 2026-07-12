@@ -14,8 +14,6 @@ export const defaultAccessoryFilters: AccessoryFilters = {
   tripod: "",
   location: "",
   mountType: "",
-  compatibleLensId: "",
-  onlyCompatible: false,
 };
 
 type AccessoryContextValue = {
@@ -77,6 +75,13 @@ export function filterAccessories(accessories: Accessory[], filters: AccessoryFi
       accessory.capacityNotes ?? "",
       accessory.carryStyleNotes ?? "",
       accessory.filterStrength ?? "",
+      accessory.specCapacity ?? "",
+      accessory.specFormat ?? "",
+      accessory.specConnection ?? "",
+      accessory.specCompatibility ?? "",
+      accessory.specPower ?? "",
+      accessory.specColorModes ?? "",
+      accessory.specVariant ?? "",
     ].join(" ").toLowerCase().includes(query)) return false;
     if (filters.brand && accessory.brandId !== filters.brand) return false;
     if (filters.type && accessory.typeId !== filters.type) return false;
@@ -100,8 +105,16 @@ export function sanitizeAccessoryFilters(filters: AccessoryFilters, typeCategory
       ...filters,
       location: "",
       mountType: "",
-      compatibleLensId: "",
-      onlyCompatible: false,
+    };
+  }
+
+  if (typeCategory === "other") {
+    return {
+      ...filters,
+      laptop: "",
+      tripod: "",
+      location: "",
+      mountType: "",
     };
   }
 

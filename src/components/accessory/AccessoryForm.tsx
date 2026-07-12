@@ -2,7 +2,7 @@
 
 import React, { useMemo, useState } from "react";
 import { createAccessoryAction, deleteAccessoryAction, updateAccessoryAction } from "@/app/actions/accessory-actions";
-import { deriveFilterAccessoryPresentation, resolveFilterAccessoryTypeId } from "@/lib/accessory/accessory-utils";
+import { deriveFilterAccessoryPresentation, getOtherAccessoryProfileConfig, resolveFilterAccessoryTypeId } from "@/lib/accessory/accessory-utils";
 import type { Accessory, AccessoryReferenceData, AccessoryTypeCategory } from "@/lib/accessory/types";
 
 export function AccessoryForm({
@@ -28,6 +28,8 @@ export function AccessoryForm({
     [referenceData.types, typeCategory],
   );
   const [selectedTypeId, setSelectedTypeId] = useState(accessory?.typeId ?? allowedTypes[0]?.id ?? "");
+  const selectedType = useMemo(() => allowedTypes.find((type) => type.id === selectedTypeId) ?? null, [allowedTypes, selectedTypeId]);
+  const otherProfileConfig = useMemo(() => getOtherAccessoryProfileConfig(selectedType?.profile ?? null), [selectedType?.profile]);
   const [mountTarget, setMountTarget] = useState<"none" | "lens" | "accessory">(
     accessory?.mountedOnLensId ? "lens" : accessory?.mountedOnAccessoryId ? "accessory" : "none",
   );
@@ -109,10 +111,15 @@ export function AccessoryForm({
                   <label>Type calculé<input value={derivedFilterPresentation?.typeName ?? ""} readOnly aria-readonly="true" placeholder="Calculé selon rôle et interfaces" /></label>
                   <label>Nom calculé<input value={derivedFilterPresentation?.name ?? ""} readOnly aria-readonly="true" placeholder="Calculé automatiquement" /></label>
                 </>
-              ) : (
-                <>
-                  <label>Type<select name="typeId" value={selectedTypeId} onChange={(event) => setSelectedTypeId(event.target.value)} required>{allowedTypes.map((type) => <option key={type.id} value={type.id}>{type.name}</option>)}</select></label>
-                  <Field name="name" label="Nom" defaultValue={accessory?.name} required />
+          ) : typeCategory === "other" ? (
+            <>
+              <label>Type<select name="typeId" value={selectedTypeId} onChange={(event) => setSelectedTypeId(event.target.value)} required>{allowedTypes.map((type) => <option key={type.id} value={type.id}>{type.name}</option>)}</select></label>
+              <Field name="name" label="Nom" defaultValue={accessory?.name} required />
+            </>
+          ) : (
+            <>
+              <label>Type<select name="typeId" value={selectedTypeId} onChange={(event) => setSelectedTypeId(event.target.value)} required>{allowedTypes.map((type) => <option key={type.id} value={type.id}>{type.name}</option>)}</select></label>
+              <Field name="name" label="Nom" defaultValue={accessory?.name} required />
                 </>
               )}
             </div>
@@ -163,6 +170,28 @@ export function AccessoryForm({
                 </div>
               </section>
             </>
+          ) : typeCategory === "other" ? (
+            <>
+              <section>
+                <div className="form-section-header"><h3 className="form-section-title">Caractéristiques</h3></div>
+                <div className="form-section-body">
+                  {otherProfileConfig && otherProfileConfig.fields.length > 0 ? otherProfileConfig.fields.map((field) => (
+                    <Field key={field.key} name={field.key} label={field.label} defaultValue={accessory?.[field.key] ?? ""} inputMode={field.key === "specPower" ? "decimal" : undefined} placeholder={field.placeholder} />
+                  )) : <p className="form-help">Ce type n'a pas de champ dédié. Utilise le nom libre et les notes.</p>}
+                </div>
+              </section>
+              <section>
+                <div className="form-section-header"><h3 className="form-section-title">Informations</h3></div>
+                <div className="form-section-body">
+                  <div className="form-row">
+                    <Field name="weightG" label="Poids (g)" defaultValue={accessory?.weightG} inputMode="decimal" />
+                    <Field name="priceEur" label="Prix (€)" defaultValue={accessory?.priceEur} inputMode="decimal" />
+                  </div>
+                  <label>Notes<textarea name="capacityNotes" defaultValue={accessory?.capacityNotes ?? ""} rows={4} placeholder="Ex. lot de 4, version USB-C, usage studio..." /></label>
+                </div>
+              </section>
+              <OtherAccessoryHiddenFields accessory={accessory} />
+            </>
           ) : (
             <>
               <section>
@@ -212,6 +241,32 @@ export function AccessoryForm({
   );
 }
 
+function OtherAccessoryHiddenFields({ accessory }: { accessory?: Accessory }) {
+  return (
+    <>
+      <input type="hidden" name="capacityLiters" value="" />
+      <input type="hidden" name="capacityBodies" value="" />
+      <input type="hidden" name="capacityLenses" value="" />
+      <input type="hidden" name="fitsLaptop" value="" />
+      <input type="hidden" name="fitsTripod" value="" />
+      <input type="hidden" name="widthMm" value="" />
+      <input type="hidden" name="heightMm" value="" />
+      <input type="hidden" name="depthMm" value="" />
+      <input type="hidden" name="carryStyleNotes" value="" />
+      <input type="hidden" name="storageLocation" value={accessory?.storageLocation ?? "bag"} />
+      <input type="hidden" name="mountedOnLensId" value="" />
+      <input type="hidden" name="mountedOnAccessoryId" value="" />
+      <input type="hidden" name="rearMountType" value="none" />
+      <input type="hidden" name="rearDiameterMm" value="" />
+      <input type="hidden" name="frontMountType" value="none" />
+      <input type="hidden" name="frontDiameterMm" value="" />
+      <input type="hidden" name="filterRole" value="general" />
+      <input type="hidden" name="filterStrength" value="" />
+      <input type="hidden" name="supportsMagneticHood" value="" />
+    </>
+  );
+}
+
 function BagAccessoryHiddenFields({ accessory }: { accessory?: Accessory }) {
   return (
     <>
@@ -229,9 +284,9 @@ function BagAccessoryHiddenFields({ accessory }: { accessory?: Accessory }) {
   );
 }
 
-function Field({ name, label, defaultValue, value, onChange, required, inputMode }: { name: string; label: string; defaultValue?: string | number | null; value?: string; onChange?: React.ChangeEventHandler<HTMLInputElement>; required?: boolean; inputMode?: React.HTMLAttributes<HTMLInputElement>["inputMode"] }) {
+function Field({ name, label, defaultValue, value, onChange, required, inputMode, placeholder }: { name: string; label: string; defaultValue?: string | number | null; value?: string; onChange?: React.ChangeEventHandler<HTMLInputElement>; required?: boolean; inputMode?: React.HTMLAttributes<HTMLInputElement>["inputMode"]; placeholder?: string }) {
   // Controlled mode when value is provided; uncontrolled mode otherwise
-  const props: React.InputHTMLAttributes<HTMLInputElement> = { name, required, inputMode };
+  const props: React.InputHTMLAttributes<HTMLInputElement> = { name, required, inputMode, placeholder };
   if (value !== undefined) {
     props.value = value;
     props.onChange = onChange;

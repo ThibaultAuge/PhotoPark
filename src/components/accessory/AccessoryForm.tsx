@@ -177,7 +177,7 @@ export function AccessoryForm({
                 <div className="form-section-body">
                   {otherProfileConfig && otherProfileConfig.fields.length > 0 ? otherProfileConfig.fields.map((field) => (
                     <Field key={field.key} name={field.key} label={field.label} defaultValue={accessory?.[field.key] ?? ""} inputMode={field.key === "specPower" ? "decimal" : undefined} placeholder={field.placeholder} />
-                  )) : <p className="form-help">Ce type n'a pas de champ dédié. Utilise le nom libre et les notes.</p>}
+                  )) : <p className="form-help">Ce type n&apos;a pas de champ dédié. Utilise le nom libre et les notes.</p>}
                 </div>
               </section>
               <section>
